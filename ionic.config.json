@@ -1,0 +1,7 @@
+{
+  "name": "sargam-studio",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}
