@@ -1,2 +1,28 @@
 /* For information on how to create your own theme, please refer to:
 http://ionicframework.com/docs/theming/ */
+:root {
+  --ion-color-primary: #1d4ed8;
+  --ion-color-primary-rgb: 29, 78, 216;
+
+  --sargam-bg: #fff7ed;
+  --sargam-card: rgba(255, 255, 255, 0.92);
+  --sargam-border: rgba(120, 53, 15, 0.12);
+  --sargam-text: #1f2937;
+  --sargam-muted: #6b7280;
+  --sargam-accent: #f59e0b;
+}
+
+ion-content {
+  --background:
+    linear-gradient(rgba(255, 247, 237, 0.88), rgba(255, 247, 237, 0.94)),
+    url('/assets/indian-music-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+ion-card {
+  background: var(--sargam-card);
+  border: 1px solid var(--sargam-border);
+  box-shadow: 0 12px 32px rgba(31, 41, 55, 0.12);
+}
