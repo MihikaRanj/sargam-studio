@@ -10,8 +10,6 @@ import {
     IonInput,
     IonItem,
     IonLabel,
-    IonSegment,
-    IonSegmentButton,
     IonSelect,
     IonSelectOption,
     IonTextarea,
@@ -53,6 +51,15 @@ type ComposerScreenProps = {
     onOpenEditor: (cell: SelectedCell) => void;
 };
 
+const labelStyle: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 900,
+    letterSpacing: 0.7,
+    color: '#92400e',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+};
+
 const ComposerScreen: React.FC<ComposerScreenProps> = ({
     sections,
     activeSection,
@@ -86,166 +93,170 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
     };
 
     return (
-        <IonCard style={{ borderRadius: 18, margin: 0 }}>
-            <IonCardContent style={{ paddingTop: 12 }}>
+        <IonCard style={{ borderRadius: 26, margin: 0 }}>
+            <IonCardContent style={{ padding: 26 }}>
+                <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 32, fontWeight: 950, color: '#1f2937' }}>
+                        Compose Your Sargam
+                    </div>
+                    <div style={{ color: '#64748b', fontSize: 15, marginTop: 4 }}>
+                        Edit sections, rows, beats, swaras, taal, and tempo.
+                    </div>
+                </div>
+
+                <div style={labelStyle}>Section Controls</div>
+
                 <div
                     style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        marginBottom: 12,
+                        border: '1px solid rgba(120, 53, 15, 0.12)',
+                        borderRadius: 22,
+                        padding: 18,
+                        background: 'rgba(255,255,255,0.88)',
+                        marginBottom: 18,
                     }}
                 >
                     <div
                         style={{
-                            display: 'flex',
+                            display: 'grid',
+                            gridTemplateColumns: 'auto 1fr auto',
+                            gap: 12,
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 10,
-                            width: '100%',
-                            maxWidth: 280,
+                            marginBottom: 16,
                         }}
                     >
-                        <IonButton size="small" fill="outline" onClick={onPrevSection}>
+                        <IonButton fill="outline" onClick={onPrevSection} style={{ '--border-radius': '14px' }}>
                             <IonIcon slot="icon-only" icon={chevronBack} />
                         </IonButton>
 
-                        <div style={{ flex: 1, minWidth: 0, maxWidth: 160 }}>
-                            <IonSegment
-                                value={String(activeSectionId)}
-                                onIonChange={(e) => onSetActiveSectionId(Number(e.detail.value))}
-                                scrollable
-                            >
-                                {sections.map((section, idx) => (
-                                    <IonSegmentButton
+                        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', justifyContent: 'center' }}>
+                            {sections.map((section, idx) => {
+                                const selected = section.id === activeSectionId;
+                                return (
+                                    <button
                                         key={section.id}
-                                        value={String(section.id)}
-                                        style={{ minWidth: 90 }}
+                                        type="button"
+                                        onClick={() => onSetActiveSectionId(section.id)}
+                                        style={{
+                                            border: selected ? '2px solid #2563eb' : '1px solid rgba(120,53,15,0.14)',
+                                            background: selected ? '#eff6ff' : '#fff',
+                                            color: selected ? '#1d4ed8' : '#1f2937',
+                                            borderRadius: 999,
+                                            padding: '9px 16px',
+                                            fontWeight: 850,
+                                            cursor: 'pointer',
+                                            whiteSpace: 'nowrap',
+                                        }}
                                     >
-                                        <IonLabel>{section.name || `Section ${idx + 1}`}</IonLabel>
-                                    </IonSegmentButton>
-                                ))}
-                            </IonSegment>
+                                        {section.name || `Section ${idx + 1}`}
+                                    </button>
+                                );
+                            })}
                         </div>
 
-                        <IonButton size="small" fill="outline" onClick={onNextSection}>
+                        <IonButton fill="outline" onClick={onNextSection} style={{ '--border-radius': '14px' }}>
                             <IonIcon slot="icon-only" icon={chevronForward} />
                         </IonButton>
                     </div>
-                </div>
 
-                <div
-                    style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1.15fr auto',
-                        gap: 8,
-                        alignItems: 'end',
-                        marginBottom: 12,
-                    }}
-                >
-                    <IonItem style={{ '--min-height': '50px' } as React.CSSProperties}>
-                        <IonLabel position="stacked" style={{ fontSize: 11 }}>Name</IonLabel>
-                        <IonInput
-                            style={{ fontSize: 13 }}
-                            value={activeSection.name}
-                            onIonInput={(e) => onUpdateSectionName(activeSection.id, String(e.detail.value || ''))}
-                        />
-                    </IonItem>
-
-                    <IonItem style={{ '--min-height': '50px' } as React.CSSProperties}>
-                        <IonLabel position="stacked" style={{ fontSize: 11 }}>Taal</IonLabel>
-                        <IonSelect
-                            interface="popover"
-                            style={{ fontSize: 13 }}
-                            value={activeSection.taalId}
-                            onIonChange={(e) => onUpdateSectionTaal(activeSection.id, e.detail.value as TaalId)}
-                        >
-                            {Object.values(TAAL_OPTIONS).map((option) => (
-                                <IonSelectOption key={option.id} value={option.id}>
-                                    {option.name}
-                                </IonSelectOption>
-                            ))}
-                        </IonSelect>
-                    </IonItem>
-
-                    <div style={{ width: 88 }}>
-                        <div
+                    <div
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 1fr 130px',
+                            gap: 12,
+                            alignItems: 'end',
+                        }}
+                    >
+                        <IonItem
+                            lines="none"
                             style={{
-                                fontSize: 11,
-                                color: '#666',
-                                textAlign: 'center',
-                                marginBottom: 4,
+                                '--background': '#fff',
+                                border: '1px solid rgba(120,53,15,0.12)',
+                                borderRadius: 16,
                             }}
                         >
-                            Tempo
-                        </div>
+                            <IonLabel position="stacked">Section Name</IonLabel>
+                            <IonInput
+                                value={activeSection.name}
+                                onIonInput={(e) =>
+                                    onUpdateSectionName(activeSection.id, String(e.detail.value || ''))
+                                }
+                            />
+                        </IonItem>
 
-                        <div
+                        <IonItem
+                            lines="none"
                             style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                border: '1px solid rgba(0,0,0,0.12)',
-                                borderRadius: 10,
-                                overflow: 'hidden',
-                                height: 34,
-                                background: '#fff',
+                                '--background': '#fff',
+                                border: '1px solid rgba(120,53,15,0.12)',
+                                borderRadius: 16,
                             }}
                         >
-                            <IonButton
-                                fill="clear"
-                                size="small"
-                                style={{ margin: 0, height: 34, width: 24 }}
-                                onClick={() => changeTempo(-1)}
+                            <IonLabel position="stacked">Taal</IonLabel>
+                            <IonSelect
+                                interface="popover"
+                                value={activeSection.taalId}
+                                onIonChange={(e) =>
+                                    onUpdateSectionTaal(activeSection.id, e.detail.value as TaalId)
+                                }
                             >
-                                <IonIcon slot="icon-only" icon={remove} />
-                            </IonButton>
+                                {Object.values(TAAL_OPTIONS).map((option) => (
+                                    <IonSelectOption key={option.id} value={option.id}>
+                                        {option.name}
+                                    </IonSelectOption>
+                                ))}
+                            </IonSelect>
+                        </IonItem>
+
+                        <div>
+                            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6, fontWeight: 800 }}>
+                                Tempo
+                            </div>
 
                             <div
                                 style={{
-                                    flex: 1,
-                                    textAlign: 'center',
-                                    fontWeight: 700,
-                                    fontSize: 13,
-                                    lineHeight: '34px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    border: '1px solid rgba(120,53,15,0.14)',
+                                    borderRadius: 999,
+                                    overflow: 'hidden',
+                                    height: 42,
+                                    background: '#fff',
                                 }}
                             >
-                                {sectionTempo}
-                            </div>
+                                <IonButton fill="clear" size="small" onClick={() => changeTempo(-1)}>
+                                    <IonIcon slot="icon-only" icon={remove} />
+                                </IonButton>
 
-                            <IonButton
-                                fill="clear"
-                                size="small"
-                                style={{ margin: 0, height: 34, width: 24 }}
-                                onClick={() => changeTempo(1)}
-                            >
-                                <IonIcon slot="icon-only" icon={add} />
-                            </IonButton>
+                                <div style={{ flex: 1, textAlign: 'center', fontWeight: 900 }}>
+                                    {sectionTempo}
+                                </div>
+
+                                <IonButton fill="clear" size="small" onClick={() => changeTempo(1)}>
+                                    <IonIcon slot="icon-only" icon={add} />
+                                </IonButton>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div style={{ marginBottom: 10 }}>
-                    <div
-                        style={{
-                            display: 'flex',
-                            gap: 6,
-                            overflowX: 'auto',
-                            paddingBottom: 4,
-                        }}
-                    >
+                <div style={labelStyle}>Row Management</div>
+
+                <div
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        flexWrap: 'wrap',
+                        marginBottom: 18,
+                    }}
+                >
+                    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', flexWrap: 'wrap' }}>
                         {activeSection.rows.map((_, idx) => (
                             <IonChip
                                 key={idx}
                                 color={idx === activeRowIndex ? 'primary' : 'medium'}
                                 outline={idx !== activeRowIndex}
-                                style={{
-                                    cursor: 'pointer',
-                                    whiteSpace: 'nowrap',
-                                    fontSize: 11,
-                                    height: 28,
-                                    minWidth: 64,
-                                    padding: '0 6px',
-                                    justifyContent: 'center',
-                                }}
+                                style={{ cursor: 'pointer', fontWeight: 800 }}
                                 onClick={() => onSetActiveRowIndex(idx)}
                             >
                                 Row {idx + 1}
@@ -254,74 +265,68 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
 
                         <IonChip
                             color="success"
-                            style={{
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap',
-                                fontSize: 11,
-                                height: 28,
-                                minWidth: 82,
-                                padding: '0 6px',
-                                justifyContent: 'center',
-                            }}
+                            style={{ cursor: 'pointer', fontWeight: 800 }}
                             onClick={() => onAddRow(activeSection.id)}
                         >
-                            <IonIcon icon={add} style={{ marginRight: 4 }} />
+                            <IonIcon icon={add} />
                             Add Row
                         </IonChip>
                     </div>
-                </div>
 
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                    {isFreeRow && (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {isFreeRow && (
+                            <>
+                                <IonButton
+                                    size="small"
+                                    fill="outline"
+                                    onClick={() => onAddCellToRow(activeSection.id, activeRowIndex)}
+                                    style={{ '--border-radius': '999px', fontWeight: 800 }}
+                                >
+                                    Add Cell
+                                </IonButton>
+
+                                <IonButton
+                                    size="small"
+                                    fill="outline"
+                                    onClick={() =>
+                                        onRemoveSelectedCellFromRow(activeSection.id, activeRowIndex, selectedCell.beat)
+                                    }
+                                    style={{ '--border-radius': '999px', fontWeight: 800 }}
+                                >
+                                    Remove Cell
+                                </IonButton>
+                            </>
+                        )}
+
                         <IonButton
                             size="small"
                             fill="outline"
-                            style={{ fontSize: 10, minHeight: 30 }}
-                            onClick={() => onAddCellToRow(activeSection.id, activeRowIndex)}
+                            onClick={() => onClearRow(activeSection.id, activeRowIndex)}
+                            style={{ '--border-radius': '999px', fontWeight: 800 }}
                         >
-                            Add Cell
+                            Clear Row
                         </IonButton>
-                    )}
 
-                    {isFreeRow && (
                         <IonButton
                             size="small"
                             fill="outline"
-                            style={{ fontSize: 10, minHeight: 30 }}
-                            onClick={() =>
-                                onRemoveSelectedCellFromRow(activeSection.id, activeRowIndex, selectedCell.beat)
-                            }
+                            color="danger"
+                            onClick={() => onRemoveRow(activeSection.id, activeRowIndex)}
+                            disabled={activeSection.rows.length === 1}
+                            style={{ '--border-radius': '999px', fontWeight: 800 }}
                         >
-                            Remove Cell
+                            Delete Row
                         </IonButton>
-                    )}
-
-                    <IonButton
-                        size="small"
-                        fill="outline"
-                        style={{ fontSize: 10, minHeight: 30 }}
-                        onClick={() => onClearRow(activeSection.id, activeRowIndex)}
-                    >
-                        Clear Row
-                    </IonButton>
-
-                    <IonButton
-                        size="small"
-                        fill="outline"
-                        color="danger"
-                        style={{ fontSize: 10, minHeight: 30 }}
-                        onClick={() => onRemoveRow(activeSection.id, activeRowIndex)}
-                        disabled={activeSection.rows.length === 1}
-                    >
-                        Delete Row
-                    </IonButton>
+                    </div>
                 </div>
 
-                <div style={{ overflowX: 'auto', paddingBottom: 6 }}>
+                <div style={labelStyle}>Beat Grid</div>
+
+                <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
                     <div
                         style={{
                             display: 'flex',
-                            gap: 10,
+                            gap: 12,
                             minWidth: 'max-content',
                             alignItems: 'stretch',
                         }}
@@ -336,40 +341,41 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                             return (
                                 <div
                                     key={beatIndex}
+                                    onClick={() =>
+                                        onSelectBeat({
+                                            sectionId: activeSection.id,
+                                            row: activeRowIndex,
+                                            beat: beatIndex,
+                                            slot: 0,
+                                        })
+                                    }
                                     style={{
-                                        minWidth: 92,
-                                        maxWidth: 92,
-                                        borderRadius: 16,
-                                        padding: 8,
+                                        minWidth: 118,
+                                        maxWidth: 118,
+                                        cursor: 'pointer',
+                                        borderRadius: 20,
+                                        padding: 12,
                                         border: isBeatSelected
-                                            ? '2px solid var(--ion-color-primary)'
-                                            : '1px solid rgba(0,0,0,0.08)',
-                                        background: isBeatSelected ? 'rgba(56,128,255,0.12)' : '#fff',
+                                            ? '2px solid #2563eb'
+                                            : '1px solid rgba(15,23,42,0.08)',
+                                        background: isBeatSelected ? '#eff6ff' : '#fff',
                                         boxShadow: isBeatSelected
-                                            ? '0 0 0 2px rgba(56,128,255,0.15)'
-                                            : '0 3px 10px rgba(0,0,0,0.05)',
+                                            ? '0 10px 24px rgba(37,99,235,0.14)'
+                                            : '0 6px 18px rgba(31,41,55,0.06)',
                                     }}
                                 >
-                                    <div
-                                        style={{
-                                            textAlign: 'center',
-                                            fontSize: 11,
-                                            fontWeight: 700,
-                                            marginBottom: 6,
-                                            color: '#666',
-                                        }}
-                                    >
-                                        {isFreeRow ? `C${beatNum}` : `B${beatNum}`}
+                                    <div style={{ fontWeight: 900, color: '#1f2937', textAlign: 'center' }}>
+                                        {isFreeRow ? `Cell ${beatNum}` : `Beat ${beatNum}`}
                                     </div>
 
                                     {!isFreeRow && (
                                         <div
                                             style={{
                                                 textAlign: 'center',
-                                                fontSize: 9,
-                                                marginBottom: 6,
-                                                color: 'var(--ion-color-medium)',
-                                                minHeight: 24,
+                                                fontSize: 11,
+                                                color: '#64748b',
+                                                margin: '6px 0 10px',
+                                                minHeight: 30,
                                             }}
                                         >
                                             <div>{TAAL_OPTIONS[activeSection.taalId].markers[beatNum] || '.'}</div>
@@ -377,7 +383,7 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                                         </div>
                                     )}
 
-                                    <div style={{ display: 'grid', gap: 5 }}>
+                                    <div style={{ display: 'grid', gap: 7 }}>
                                         {beat.slots.map((slot, slotIndex) => {
                                             const isSlotSelected =
                                                 selectedCell.sectionId === activeSection.id &&
@@ -386,53 +392,66 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                                                 selectedCell.slot === slotIndex;
 
                                             return (
-                                                <div key={slotIndex} style={{ display: 'grid', gap: 2 }}>
-                                                    <IonButton
-                                                        size="small"
-                                                        fill={isSlotSelected ? 'solid' : 'outline'}
-                                                        style={{ minHeight: 34, margin: 0, fontSize: 14 }}
-                                                        onClick={() => {
-                                                            onSelectBeat({
-                                                                sectionId: activeSection.id,
-                                                                row: activeRowIndex,
-                                                                beat: beatIndex,
-                                                                slot: slotIndex,
-                                                            });
-                                                        }}
-                                                    >
-                                                        {buildSlotToken(slot) || '—'}
-                                                    </IonButton>
-
-                                                    <IonButton
-                                                        size="small"
-                                                        fill="clear"
-                                                        style={{ margin: 0, minHeight: 18, fontSize: 11 }}
-                                                        onClick={() => {
-                                                            const cell = {
-                                                                sectionId: activeSection.id,
-                                                                row: activeRowIndex,
-                                                                beat: beatIndex,
-                                                                slot: slotIndex,
-                                                            };
-                                                            onSelectBeat(cell);
-                                                            onOpenEditor(cell);
-                                                        }}
-                                                    >
-                                                        <IonIcon slot="icon-only" icon={createOutline} />
-                                                    </IonButton>
-                                                </div>
+                                                <IonButton
+                                                    key={slotIndex}
+                                                    size="small"
+                                                    fill={isSlotSelected ? 'solid' : 'outline'}
+                                                    style={{
+                                                        minHeight: 34,
+                                                        margin: 0,
+                                                        fontWeight: 850,
+                                                        '--border-radius': '12px',
+                                                    }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onSelectBeat({
+                                                            sectionId: activeSection.id,
+                                                            row: activeRowIndex,
+                                                            beat: beatIndex,
+                                                            slot: slotIndex,
+                                                        });
+                                                    }}
+                                                >
+                                                    {buildSlotToken(slot) || '—'}
+                                                </IonButton>
                                             );
                                         })}
                                     </div>
+
+                                    <IonButton
+                                        size="small"
+                                        fill="outline"
+                                        style={{
+                                            marginTop: 10,
+                                            width: '100%',
+                                            '--border-radius': '999px',
+                                            fontSize: 11,
+                                            fontWeight: 800,
+                                        }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const cell = {
+                                                sectionId: activeSection.id,
+                                                row: activeRowIndex,
+                                                beat: beatIndex,
+                                                slot: 0,
+                                            };
+                                            onSelectBeat(cell);
+                                            onOpenEditor(cell);
+                                        }}
+                                    >
+                                        <IonIcon slot="start" icon={createOutline} />
+                                        Edit
+                                    </IonButton>
                                 </div>
                             );
                         })}
                     </div>
                 </div>
 
-                <IonAccordionGroup style={{ marginTop: 10 }}>
+                <IonAccordionGroup style={{ marginTop: 14 }}>
                     <IonAccordion value="text">
-                        <IonItem slot="header">
+                        <IonItem slot="header" lines="none">
                             <IonLabel>Text Notation Editor</IonLabel>
                         </IonItem>
 
