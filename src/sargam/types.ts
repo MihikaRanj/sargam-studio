@@ -3,6 +3,7 @@ export type Variant = 'shuddha' | 'komal' | 'teevra';
 export type SlotMode = 'note' | 'rest' | 'empty';
 export type TaalId = 'none' | 'jhaptaal' | 'teentaal' | 'ektaal' | 'rupak' | 'keherwa' | 'dadra';
 export type AppStep = 'setup' | 'compose' | 'review';
+export type TaalBol = string | string[];
 
 export type Slot = {
   mode: SlotMode;
@@ -31,11 +32,11 @@ export type SelectedCell = {
   slot: number;
 };
 
-export type TaalConfig = {
+export interface TaalConfig {
   id: TaalId;
   name: string;
   beats: number | null;
-  bols: string[];
+  bols: TaalBol[];
   markers: Record<number, string>;
   hasTabla: boolean;
-};
+}

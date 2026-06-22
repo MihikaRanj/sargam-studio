@@ -3,6 +3,13 @@ import { SWARA_MAP, TAAL_OPTIONS } from './constants';
 import { buildSlotToken, parseToken } from './notation';
 import { Section, Swara, Variant } from './types';
 
+type TaalBol = string | string[];
+
+function getBolParts(bol: TaalBol | undefined): string[] {
+    if (!bol) return [];
+    return Array.isArray(bol) ? bol : [bol];
+}
+
 function getFrequency(
     token: { swara: string; variant: Variant; octave: -1 | 0 | 1 },
     sa: string
@@ -118,20 +125,26 @@ function getNativeAudioBuffer(
 
 function pickTablaUrlFromBol(bol = ''): string {
     const b = bol.toLowerCase();
-
     if (b.includes('tin')) return '/audio/tabla/tin.wav';
+    if (b.includes('ti')) return '/audio/tabla/tin.wav';
     if (b.includes('dhin')) return '/audio/tabla/dhin.wav';
-    if (b.includes('dhi') || b.includes('dha')) return '/audio/tabla/dha.wav';
+    if (b.includes('dha')) return '/audio/tabla/dha.wav';
+    if (b.includes('dhi')) return '/audio/tabla/dhi.wav';
     if (b.includes('ge')) return '/audio/tabla/ge.wav';
-    if (b.includes('kat') || b.includes('ta')) return '/audio/tabla/ta.wav';
-    if (b.includes('ki')) return '/audio/tabla/ka.wav';
-    if (b.includes('tun')) return '/audio/tabla/tu.wav';
+    if (b.includes('na')) return '/audio/tabla/na.wav';
+    if (b.includes('kat')) return '/audio/tabla/kat.wav';
+    if (b.includes('ki')) return '/audio/tabla/tit.wav';
+    if (b.includes('tun')) return '/audio/tabla/tun.wav';
+    if (b.includes('re')) return '/audio/tabla/re.wav';
+    if (b.includes('tu')) return '/audio/tabla/tu.wav';
+    if (b.includes('ta')) return '/audio/tabla/ta.wav';
+    if (b.includes('ka')) return '/audio/tabla/ka.wav';
 
     return '/audio/tabla/na.wav';
 }
 
 async function createOfflineTablaPlayers() {
-    const tablaGain = new Tone.Gain(0.35).toDestination(); //(0.25–0.5 range)
+    const tablaGain = new Tone.Gain(0.85).toDestination(); //(0.25–0.5 range)
 
     const players = {
         dha: new Tone.Player('/audio/tabla/dha.wav').connect(tablaGain),
@@ -143,6 +156,11 @@ async function createOfflineTablaPlayers() {
         ge: new Tone.Player('/audio/tabla/ge.wav').connect(tablaGain),
         ka: new Tone.Player('/audio/tabla/ka.wav').connect(tablaGain),
         tu: new Tone.Player('/audio/tabla/tu.wav').connect(tablaGain),
+        ti: new Tone.Player('/audio/tabla/tin.wav').connect(tablaGain),
+        kat: new Tone.Player('/audio/tabla/kat.wav').connect(tablaGain),
+        ki: new Tone.Player('/audio/tabla/tit.wav').connect(tablaGain),
+        tun: new Tone.Player('/audio/tabla/tun.wav').connect(tablaGain),
+        re: new Tone.Player('/audio/tabla/re.wav').connect(tablaGain),
     };
 
     await Tone.loaded();
@@ -152,14 +170,20 @@ async function createOfflineTablaPlayers() {
 function pickTablaPlayer(players: Awaited<ReturnType<typeof createOfflineTablaPlayers>>, bol = '') {
     const b = bol.toLowerCase();
 
-    if (b.includes('tin')) return players.tin;
+    if (b.includes('dha')) return players.dha;
     if (b.includes('dhin')) return players.dhin;
-    if (b.includes('dhi') || b.includes('dha')) return players.dha;
+    if (b.includes('dhi')) return players.dhi;
+    if (b.includes('tin')) return players.tin;
+    if (b.includes('tun')) return players.tun;
+    if (b.includes('kat')) return players.kat;
+    if (b.includes('na')) return players.na;
+    if (b.includes('ta')) return players.ta;
     if (b.includes('ge')) return players.ge;
-    if (b.includes('kat') || b.includes('ta')) return players.ta;
-    if (b.includes('ki')) return players.ka;
-    if (b.includes('tun')) return players.tu;
-
+    if (b.includes('ka')) return players.ka;
+    if (b.includes('tu')) return players.tu;
+    if (b.includes('ti')) return players.ti;
+    if (b.includes('ki')) return players.ki;
+    if (b.includes('re')) return players.re;
     return players.na;
 }
 
@@ -183,7 +207,7 @@ export async function exportSectionsToWav(params: {
                 sustain: 0.4,
                 release: 0.15,
             },
-        }).connect(new Tone.Gain(0.9).toDestination());
+        }).connect(new Tone.Gain(0.7).toDestination());
 
         const tablaPlayers = await createOfflineTablaPlayers();
 
@@ -200,9 +224,13 @@ export async function exportSectionsToWav(params: {
             section.rows.forEach((row) => {
                 row.forEach((beat, beatIndex) => {
                     if (taal.hasTabla) {
-                        const bol = taal.bols[beatIndex] || '';
-                        const player = pickTablaPlayer(tablaPlayers, bol);
-                        player.start(currentTime);
+                        const bolParts = getBolParts(taal.bols[beatIndex]);
+                        const bolSubDuration = beatDuration / Math.max(1, bolParts.length);
+
+                        bolParts.forEach((bolPart, bolPartIndex) => {
+                            const player = pickTablaPlayer(tablaPlayers, bolPart);
+                            player.start(currentTime + bolPartIndex * bolSubDuration);
+                        });
                     }
 
                     const subDuration = beatDuration / beat.layout;

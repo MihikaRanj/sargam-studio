@@ -12,6 +12,7 @@ import {
 import { add, musicalNotes, trash, optionsOutline } from 'ionicons/icons';
 import { SA_OPTIONS, TAAL_OPTIONS } from '../sargam/constants';
 import { Section, TaalId } from '../sargam/types';
+import { play, stop } from 'ionicons/icons';
 
 type SetupScreenProps = {
   sa: string;
@@ -19,6 +20,8 @@ type SetupScreenProps = {
   onSetSa: (value: string) => void;
   onAddSection: (taalId: TaalId) => void;
   onRemoveSection: (sectionId: number) => void;
+  onPreviewScale: () => void;
+  previewingScale: boolean;
 };
 
 const SetupScreen: React.FC<SetupScreenProps> = ({
@@ -27,10 +30,18 @@ const SetupScreen: React.FC<SetupScreenProps> = ({
   onSetSa,
   onAddSection,
   onRemoveSection,
+  onPreviewScale,
+  previewingScale,
 }) => {
   return (
     <>
-      <IonCard style={{ borderRadius: 24, marginBottom: 16 }}>
+      <IonCard
+        style={{
+          borderRadius: 24,
+          marginBottom: 16,
+          borderTop: '4px solid #f59e0b',
+        }}
+      >
         <IonCardContent style={{ padding: 22 }}>
           <div
             style={{
@@ -58,7 +69,10 @@ const SetupScreen: React.FC<SetupScreenProps> = ({
               </div>
 
               <div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: '#1f2937' }}>
+                <div style={{
+                  fontSize: 22, fontWeight: 950,
+                  letterSpacing: '-0.03em', color: '#1f2937'
+                }}>
                   Create New Composition
                 </div>
                 <div style={{ color: '#64748b', fontSize: 14, marginTop: 3 }}>
@@ -67,28 +81,57 @@ const SetupScreen: React.FC<SetupScreenProps> = ({
               </div>
             </div>
 
-            <IonItem
-              lines="none"
+            <div
               style={{
-                '--background': 'rgba(255,255,255,0.85)',
-                border: '1px solid rgba(120, 53, 15, 0.12)',
-                borderRadius: 16,
+                display: 'grid',
+                gridTemplateColumns: '180px auto',
+                gap: 12,
+                alignItems: 'end',
               }}
             >
-              <IonLabel position="stacked">Scale / Sa</IonLabel>
-              <IonSelect value={sa} onIonChange={(e) => onSetSa(String(e.detail.value))}>
-                {SA_OPTIONS.map((s) => (
-                  <IonSelectOption key={s} value={s}>
-                    {s}
-                  </IonSelectOption>
-                ))}
-              </IonSelect>
-            </IonItem>
+              <IonItem
+                lines="none"
+                style={{
+                  '--background': 'transparent',
+                  border: '1px solid rgba(120, 53, 15, 0.12)',
+                  borderRadius: 18,
+                }}
+              >
+                <IonLabel position="stacked">Scale / Sa</IonLabel>
+                <IonSelect value={sa} onIonChange={(e) => onSetSa(String(e.detail.value))}>
+                  {SA_OPTIONS.map((s) => (
+                    <IonSelectOption key={s} value={s}>
+                      {s}
+                    </IonSelectOption>
+                  ))}
+                </IonSelect>
+              </IonItem>
+
+              <IonButton
+                fill={previewingScale ? 'outline' : 'solid'}
+                color={previewingScale ? 'danger' : 'primary'}
+                onClick={onPreviewScale}
+                style={{
+                  '--border-radius': '999px',
+                  fontWeight: 900,
+                  minHeight: 42,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <IonIcon slot="start" icon={previewingScale ? stop : play} />
+                {previewingScale ? 'Stop Scale' : 'Preview Scale'}
+              </IonButton>
+            </div>
           </div>
         </IonCardContent>
       </IonCard>
 
-      <IonCard style={{ borderRadius: 24 }}>
+      <IonCard
+        style={{
+          borderRadius: 24,
+          borderTop: '4px solid #2563eb',
+        }}
+      >
         <IonCardContent style={{ padding: 22 }}>
           <div
             style={{
@@ -101,7 +144,10 @@ const SetupScreen: React.FC<SetupScreenProps> = ({
             }}
           >
             <div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#1f2937' }}>
+              <div style={{
+                fontSize: 24, fontWeight: 950,
+                letterSpacing: '-0.03em', color: '#1f2937'
+              }}>
                 Composition Sections
               </div>
               <div style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>
@@ -165,7 +211,8 @@ const SetupScreen: React.FC<SetupScreenProps> = ({
 
                       <div
                         style={{
-                          fontWeight: 900,
+                          fontWeight: 950,
+                          letterSpacing: '-0.03em',
                           fontSize: 20,
                           color: '#1f2937',
                           marginTop: 4,

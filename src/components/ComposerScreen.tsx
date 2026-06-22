@@ -20,10 +20,13 @@ import {
     chevronForward,
     createOutline,
     remove,
+    play,
+    stop,
 } from 'ionicons/icons';
 import { TAAL_OPTIONS } from '../sargam/constants';
 import { buildSlotToken } from '../sargam/notation';
 import { Beat, Section, SelectedCell, TaalId } from '../sargam/types';
+import { SA_OPTIONS } from '../sargam/constants';
 
 type ComposerScreenProps = {
     sections: Section[];
@@ -49,15 +52,41 @@ type ComposerScreenProps = {
     onSelectBeat: (cell: SelectedCell) => void;
     onTextChange: (text: string) => void;
     onOpenEditor: (cell: SelectedCell) => void;
+    onPlayRow: () => void;
+    playing: boolean;
+    onPreviewTaal: () => void;
+    previewingTaal: boolean;
+    sa: string;
+    onSetSa: (value: string) => void;
+    onPreviewScale: () => void;
+    previewingScale: boolean;
 };
 
 const labelStyle: React.CSSProperties = {
     fontSize: 11,
-    fontWeight: 900,
-    letterSpacing: 0.7,
+    fontWeight: 950,
+    letterSpacing: '-0.03em',
     color: '#92400e',
     textTransform: 'uppercase',
     marginBottom: 8,
+};
+
+const rowChipStyle: React.CSSProperties = {
+    cursor: 'pointer',
+    fontWeight: 850,
+    height: 34,
+    padding: '0 12px',
+    borderRadius: 999,
+    fontSize: 13,
+};
+
+const rowActionChipStyle: React.CSSProperties = {
+    cursor: 'pointer',
+    fontWeight: 850,
+    height: 34,
+    padding: '0 12px',
+    borderRadius: 999,
+    fontSize: 13,
 };
 
 const ComposerScreen: React.FC<ComposerScreenProps> = ({
@@ -84,6 +113,14 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
     onSelectBeat,
     onTextChange,
     onOpenEditor,
+    onPlayRow,
+    playing,
+    onPreviewTaal,
+    previewingTaal,
+    sa,
+    onSetSa,
+    onPreviewScale,
+    previewingScale,
 }) => {
     const sectionTempo = activeSection.tempo ?? 90;
 
@@ -93,7 +130,13 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
     };
 
     return (
-        <IonCard style={{ borderRadius: 26, margin: 0 }}>
+        <IonCard
+            style={{
+                borderRadius: 26,
+                margin: 0,
+                borderTop: '4px solid #2563eb',
+            }}
+        >
             <IonCardContent style={{ padding: 26 }}>
                 <div style={{ marginBottom: 20 }}>
                     <div style={{ fontSize: 32, fontWeight: 950, color: '#1f2937' }}>
@@ -112,7 +155,7 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                         borderRadius: 22,
                         padding: 18,
                         background: 'rgba(255,255,255,0.88)',
-                        marginBottom: 18,
+                        marginBottom: 26,
                     }}
                 >
                     <div
@@ -128,7 +171,19 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                             <IonIcon slot="icon-only" icon={chevronBack} />
                         </IonButton>
 
-                        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', justifyContent: 'center' }}>
+                        <div
+                            style={{
+                                flex: 1,
+                                minWidth: 0,
+                                display: 'flex',
+                                gap: 8,
+                                overflowX: 'auto',
+                                overflowY: 'hidden',
+                                justifyContent: 'flex-start',
+                                paddingBottom: 8,
+                                scrollPaddingLeft: 8,
+                            }}
+                        >
                             {sections.map((section, idx) => {
                                 const selected = section.id === activeSectionId;
                                 return (
@@ -160,10 +215,10 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
 
                     <div
                         style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr 130px',
+                            display: 'flex',
                             gap: 12,
                             alignItems: 'end',
+                            flexWrap: 'wrap',
                         }}
                     >
                         <IonItem
@@ -172,7 +227,9 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                                 '--background': '#fff',
                                 border: '1px solid rgba(120,53,15,0.12)',
                                 borderRadius: 16,
-                            }}
+                                width: 260,
+                                minWidth: 260,
+                            } as React.CSSProperties}
                         >
                             <IonLabel position="stacked">Section Name</IonLabel>
                             <IonInput
@@ -189,7 +246,53 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                                 '--background': '#fff',
                                 border: '1px solid rgba(120,53,15,0.12)',
                                 borderRadius: 16,
+                                width: 110,
+                            } as React.CSSProperties}
+                        >
+                            <IonLabel position="stacked">Scale/ Sa</IonLabel>
+                            <IonSelect
+                                interface="popover"
+                                value={sa}
+                                onIonChange={(e) => onSetSa(String(e.detail.value))}
+                            >
+                                {SA_OPTIONS.map((s) => (
+                                    <IonSelectOption key={s} value={s}>
+                                        {s}
+                                    </IonSelectOption>
+                                ))}
+                            </IonSelect>
+                        </IonItem>
+
+                        <IonButton
+                            fill={previewingScale ? 'outline' : 'solid'}
+                            color={previewingScale ? 'danger' : 'primary'}
+                            onClick={onPreviewScale}
+                            size="small"
+                            style={{
+                                '--border-radius': '999px',
+                                '--padding-start': '10px',
+                                '--padding-end': '10px',
+                                '--box-shadow': 'none',
+                                height: 36,
+                                minHeight: 36,
+                                width: 96,
+                                fontSize: 13,
+                                fontWeight: 800,
+                                textTransform: 'none',
                             }}
+                        >
+                            <IonIcon slot="start" icon={previewingScale ? stop : play} />
+                            {previewingScale ? 'Stop' : 'Scale'}
+                        </IonButton>
+
+                        <IonItem
+                            lines="none"
+                            style={{
+                                '--background': '#fff',
+                                border: '1px solid rgba(120,53,15,0.12)',
+                                borderRadius: 16,
+                                width: 160,
+                            } as React.CSSProperties}
                         >
                             <IonLabel position="stacked">Taal</IonLabel>
                             <IonSelect
@@ -207,7 +310,7 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                             </IonSelect>
                         </IonItem>
 
-                        <div>
+                        <div style={{ width: 105 }}>
                             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6, fontWeight: 800 }}>
                                 Tempo
                             </div>
@@ -236,6 +339,29 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                                 </IonButton>
                             </div>
                         </div>
+
+                        <IonButton
+                            fill={previewingTaal ? 'outline' : 'solid'}
+                            color={previewingTaal ? 'danger' : 'primary'}
+                            onClick={onPreviewTaal}
+                            disabled={activeSection.taalId === 'none'}
+                            size="small"
+                            style={{
+                                '--border-radius': '999px',
+                                '--padding-start': '10px',
+                                '--padding-end': '10px',
+                                '--box-shadow': 'none',
+                                height: 36,
+                                minHeight: 36,
+                                width: 92,
+                                fontSize: 13,
+                                fontWeight: 800,
+                                textTransform: 'none',
+                            }}
+                        >
+                            <IonIcon slot="start" icon={previewingTaal ? stop : play} />
+                            {previewingTaal ? 'Stop' : 'Taal'}
+                        </IonButton>
                     </div>
                 </div>
 
@@ -247,7 +373,7 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                         justifyContent: 'space-between',
                         gap: 12,
                         flexWrap: 'wrap',
-                        marginBottom: 18,
+                        marginBottom: 26,
                     }}
                 >
                     <div style={{ display: 'flex', gap: 8, overflowX: 'auto', flexWrap: 'wrap' }}>
@@ -256,7 +382,11 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                                 key={idx}
                                 color={idx === activeRowIndex ? 'primary' : 'medium'}
                                 outline={idx !== activeRowIndex}
-                                style={{ cursor: 'pointer', fontWeight: 800 }}
+                                //style={{ cursor: 'pointer', fontWeight: 800 }}
+                                style={{
+                                    ...rowChipStyle,
+                                    whiteSpace: 'nowrap',
+                                }}
                                 onClick={() => onSetActiveRowIndex(idx)}
                             >
                                 Row {idx + 1}
@@ -265,7 +395,13 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
 
                         <IonChip
                             color="success"
-                            style={{ cursor: 'pointer', fontWeight: 800 }}
+                            // style={{ cursor: 'pointer', fontWeight: 800 }}
+                            style={{
+                                ...rowChipStyle,
+                                whiteSpace: 'nowrap',
+                                color: '#16a34a',
+                                background: '#dcfce7',
+                            }}
                             onClick={() => onAddRow(activeSection.id)}
                         >
                             <IonIcon icon={add} />
@@ -273,50 +409,85 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                         </IonChip>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <div
+                        style={{
+                            display: 'flex',
+                            gap: 8,
+                            flexWrap: 'wrap',
+                            alignItems: 'center',
+                            marginBottom: 26,
+                        }}
+                    >
                         {isFreeRow && (
-                            <>
-                                <IonButton
-                                    size="small"
-                                    fill="outline"
-                                    onClick={() => onAddCellToRow(activeSection.id, activeRowIndex)}
-                                    style={{ '--border-radius': '999px', fontWeight: 800 }}
-                                >
-                                    Add Cell
-                                </IonButton>
-
-                                <IonButton
-                                    size="small"
-                                    fill="outline"
-                                    onClick={() =>
-                                        onRemoveSelectedCellFromRow(activeSection.id, activeRowIndex, selectedCell.beat)
-                                    }
-                                    style={{ '--border-radius': '999px', fontWeight: 800 }}
-                                >
-                                    Remove Cell
-                                </IonButton>
-                            </>
+                            <IonChip
+                                style={{
+                                    ...rowActionChipStyle,
+                                    color: '#2563eb',
+                                    background: '#eff6ff',
+                                }}
+                                onClick={() => onAddCellToRow(activeSection.id, activeRowIndex)}
+                            >
+                                <IonIcon icon={add} style={{ marginRight: 5 }} />
+                                Add Cell
+                            </IonChip>
                         )}
 
-                        <IonButton
-                            size="small"
-                            fill="outline"
+                        {isFreeRow && (
+                            <IonChip
+                                outline
+                                style={{
+                                    ...rowActionChipStyle,
+                                    color: '#2563eb',
+                                    borderColor: '#2563eb',
+                                }}
+                                onClick={() =>
+                                    onRemoveSelectedCellFromRow(activeSection.id, activeRowIndex, selectedCell.beat)
+                                }
+                            >
+                                Remove Cell
+                            </IonChip>
+                        )}
+
+                        <IonChip
+                            style={{
+                                ...rowActionChipStyle,
+                                color: '#2563eb',
+                                background: '#eff6ff',
+                            }}
+                            onClick={onPlayRow}
+                        >
+                            <IonIcon icon={playing ? stop : play} style={{ marginRight: 5 }} />
+                            {playing ? 'Stop Row' : 'Play Row'}
+                        </IonChip>
+
+                        <IonChip
+                            style={{
+                                ...rowActionChipStyle,
+                                color: '#b45309',
+                                background: '#fef3c7',
+                            }}
                             onClick={() => onClearRow(activeSection.id, activeRowIndex)}
-                            style={{ '--border-radius': '999px', fontWeight: 800 }}
                         >
                             Clear Row
-                        </IonButton>
+                        </IonChip>
 
-                        <IonButton
-                            size="small"
-                            fill="outline"
-                            color="danger"
-                            onClick={() => onRemoveRow(activeSection.id, activeRowIndex)}
-                            disabled={activeSection.rows.length === 1}
-                            style={{ '--border-radius': '999px', fontWeight: 800 }}
+                        <IonChip
+                            outline
+                            style={{
+                                ...rowActionChipStyle,
+                                color: '#b91c1c',
+                                borderColor: '#ef4444',
+                                opacity: activeSection.rows.length === 1 ? 0.45 : 1,
+                                cursor: activeSection.rows.length === 1 ? 'not-allowed' : 'pointer',
+                            }}
+                            onClick={() => {
+                                if (activeSection.rows.length > 1) {
+                                    onRemoveRow(activeSection.id, activeRowIndex);
+                                }
+                            }}
                         >
                             Delete Row
-                        </IonButton>
+                        </IonChip>
                     </div>
                 </div>
 
@@ -350,11 +521,11 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                                         })
                                     }
                                     style={{
-                                        minWidth: 118,
-                                        maxWidth: 118,
+                                        minWidth: 92,
+                                        maxWidth: 92,
                                         cursor: 'pointer',
-                                        borderRadius: 20,
-                                        padding: 12,
+                                        borderRadius: 14,
+                                        padding: 8,
                                         border: isBeatSelected
                                             ? '2px solid #2563eb'
                                             : '1px solid rgba(15,23,42,0.08)',
@@ -362,9 +533,17 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                                         boxShadow: isBeatSelected
                                             ? '0 10px 24px rgba(37,99,235,0.14)'
                                             : '0 6px 18px rgba(31,41,55,0.06)',
+                                        transition: 'all 0.16s ease',
+                                        transform: isBeatSelected ? 'scale(1.025)' : 'scale(1)',
                                     }}
                                 >
-                                    <div style={{ fontWeight: 900, color: '#1f2937', textAlign: 'center' }}>
+                                    <div style={{
+                                        fontWeight: 900,
+                                        fontSize: 13,
+                                        letterSpacing: '-0.03em',
+                                        color: '#1f2937',
+                                        textAlign: 'center'
+                                    }}>
                                         {isFreeRow ? `Cell ${beatNum}` : `Beat ${beatNum}`}
                                     </div>
 
@@ -372,10 +551,11 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                                         <div
                                             style={{
                                                 textAlign: 'center',
-                                                fontSize: 11,
+                                                fontSize: 9,
                                                 color: '#64748b',
-                                                margin: '6px 0 10px',
-                                                minHeight: 30,
+                                                margin: '4px 0 7px',
+                                                minHeight: 24,
+                                                lineHeight: 1.15,
                                             }}
                                         >
                                             <div>{TAAL_OPTIONS[activeSection.taalId].markers[beatNum] || '.'}</div>
@@ -383,7 +563,7 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                                         </div>
                                     )}
 
-                                    <div style={{ display: 'grid', gap: 7 }}>
+                                    <div style={{ display: 'grid', gap: 5 }}>
                                         {beat.slots.map((slot, slotIndex) => {
                                             const isSlotSelected =
                                                 selectedCell.sectionId === activeSection.id &&
@@ -397,10 +577,11 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                                                     size="small"
                                                     fill={isSlotSelected ? 'solid' : 'outline'}
                                                     style={{
-                                                        minHeight: 34,
+                                                        minHeight: 28,
                                                         margin: 0,
+                                                        fontSize: 12,
                                                         fontWeight: 850,
-                                                        '--border-radius': '12px',
+                                                        '--border-radius': '10px',
                                                     }}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -422,10 +603,11 @@ const ComposerScreen: React.FC<ComposerScreenProps> = ({
                                         size="small"
                                         fill="outline"
                                         style={{
-                                            marginTop: 10,
+                                            marginTop: 7,
                                             width: '100%',
+                                            minHeight: 26,
                                             '--border-radius': '999px',
-                                            fontSize: 11,
+                                            fontSize: 10,
                                             fontWeight: 800,
                                         }}
                                         onClick={(e) => {

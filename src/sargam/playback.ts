@@ -3,6 +3,13 @@ import { SWARA_MAP, TAAL_OPTIONS } from './constants';
 import { Section, Swara, Variant } from './types';
 import { buildSlotToken, parseToken } from './notation';
 
+type TaalBol = string | string[];
+
+function getBolParts(bol: TaalBol | undefined): string[] {
+  if (!bol) return [];
+  return Array.isArray(bol) ? bol : [bol];
+}
+
 export function getFrequency(
   token: { swara: string; variant: Variant; octave: -1 | 0 | 1 },
   sa: string
@@ -24,12 +31,18 @@ export function pickTablaPlayer(players: any, bol = '') {
 
   if (b.includes('tin')) return players.tin;
   if (b.includes('dhin')) return players.dhin;
-  if (b.includes('dhi') || b.includes('dha')) return players.dha;
+  if (b.includes('dhi')) return players.dhi;
+  if (b.includes('dha')) return players.dha;
+  if (b.includes('kat')) return players.kat;
+  if (b.includes('tun')) return players.tun;
+  if (b.includes('ti')) return players.ti;
+  if (b.includes('na')) return players.na;
+  if (b.includes('ka')) return players.ka;
+  if (b.includes('tu')) return players.tu;
+  if (b.includes('re')) return players.re;
+  if (b.includes('ta')) return players.ta;
+  if (b.includes('ki')) return players.ki;
   if (b.includes('ge')) return players.ge;
-  if (b.includes('kat') || b.includes('ta')) return players.ta;
-  if (b.includes('ki')) return players.ka;
-  if (b.includes('tun')) return players.tu;
-
   return players.na;
 }
 
@@ -39,11 +52,16 @@ export function createTablaPlayers() {
     dhin: new Tone.Player('/audio/tabla/dhin.wav').toDestination(),
     dhi: new Tone.Player('/audio/tabla/dhi.wav').toDestination(),
     tin: new Tone.Player('/audio/tabla/tin.wav').toDestination(),
+    ti: new Tone.Player('/audio/tabla/tin.wav').toDestination(),
     na: new Tone.Player('/audio/tabla/na.wav').toDestination(),
     ta: new Tone.Player('/audio/tabla/ta.wav').toDestination(),
     ge: new Tone.Player('/audio/tabla/ge.wav').toDestination(),
     ka: new Tone.Player('/audio/tabla/ka.wav').toDestination(),
+    kat: new Tone.Player('/audio/tabla/kat.wav').toDestination(),
     tu: new Tone.Player('/audio/tabla/tu.wav').toDestination(),
+    re: new Tone.Player('/audio/tabla/re.wav').toDestination(),
+    tun: new Tone.Player('/audio/tabla/tun.wav').toDestination(),
+    ki: new Tone.Player('/audio/tabla/tit.wav').toDestination(),
   };
 }
 
@@ -74,11 +92,15 @@ export async function playSections(params: {
     section.rows.forEach((row) => {
       row.forEach((beat, beatIndex) => {
         if (taal.hasTabla) {
-          const bol = taal.bols[beatIndex] || '';
-          Tone.Transport.schedule((tTime) => {
-            if (!tablaPlayers) return;
-            pickTablaPlayer(tablaPlayers, bol).start(tTime);
-          }, currentTime);
+          const bolParts = getBolParts(taal.bols[beatIndex]);
+          const bolSubDuration = beatDuration / Math.max(1, bolParts.length);
+
+          bolParts.forEach((bolPart, bolPartIndex) => {
+            Tone.Transport.schedule((tTime) => {
+              if (!tablaPlayers) return;
+              pickTablaPlayer(tablaPlayers, bolPart).start(tTime);
+            }, currentTime + bolPartIndex * bolSubDuration);
+          });
         }
 
         const subDuration = beatDuration / beat.layout;

@@ -1,24 +1,27 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as Tone from 'tone';
 import {
-  IonBadge,
   IonButton,
   IonCard,
   IonCardContent,
   IonContent,
-  IonFooter,
-  IonHeader,
   IonIcon,
   IonPage,
-  IonToolbar,
 } from '@ionic/react';
 import { play, stop, chevronBack, homeOutline } from 'ionicons/icons';
+import SiteHeader from '../components/SiteHeader';
+import SiteFooter from '../components/SiteFooter';
+import { pageBackground, pageContainer, pillButton, primaryPillButton } from '../theme/siteStyles';
+import { SAMPLE_BAGESHREE } from '../sargam/sampleCompositions';
 
 import SetupScreen from '../components/SetupScreen';
 import ComposerScreen from '../components/ComposerScreen';
 import SurEditorModal from '../components/SurEditorModal';
 
 import { TAAL_OPTIONS } from '../sargam/constants';
+import { useLocation } from 'react-router';
+
+
 import {
   buildSlotToken,
   createBeat,
@@ -42,9 +45,21 @@ import {
 import { exportSectionsToWav } from '../sargam/exportAudio';
 
 import { getSavedCompositions, saveComposition, deleteComposition, SavedComposition } from '../sargam/storage';
+import { trackEvent } from '../utils/analytics';
 
 const DEFAULT_SA = 'C#';
 const DEFAULT_TEMPO = 90;
+
+type TaalBol = string | string[];
+
+function getBolParts(bol: TaalBol | undefined): string[] {
+  if (!bol) return [];
+  return Array.isArray(bol) ? bol : [bol];
+}
+
+function formatBol(bol: TaalBol | undefined): string {
+  return getBolParts(bol).join(' ');
+}
 
 function createInitialSections(): Section[] {
   return [
@@ -75,13 +90,19 @@ const Composer: React.FC = () => {
   });
 
   const [playing, setPlaying] = useState(false);
+  const [previewingTaal, setPreviewingTaal] = useState(false);
+  const [previewingScale, setPreviewingScale] = useState(false);
+
   const [playbackCursor, setPlaybackCursor] = useState<SelectedCell | null>(null);
+  const [pausedPosition, setPausedPosition] = useState<any>(0);
 
   const synthRef = useRef<Tone.Synth | null>(null);
   const tablaPlayersRef = useRef<any>(null);
   const [savedItems, setSavedItems] = useState<SavedComposition[]>([]);
   const [currentSaveId, setCurrentSaveId] = useState<string | null>(null);
   const [currentTitle, setCurrentTitle] = useState<string>('Untitled Composition');
+  const location = useLocation();
+  const reviewActionsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     synthRef.current = new Tone.Synth().toDestination();
@@ -129,6 +150,54 @@ const Composer: React.FC = () => {
   useEffect(() => {
     refreshSavedItems();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+
+    if (params.get('start') === 'setup') {
+      setStep('setup');
+    }
+
+    if (params.get('demo') === 'bageshree') {
+      trackEvent('sample_opened', {
+        sample_id: SAMPLE_BAGESHREE.id,
+        sample_title: SAMPLE_BAGESHREE.title,
+      });
+      const demoSections = SAMPLE_BAGESHREE.sections.map((section) =>
+        normalizeSection(section)
+      );
+
+      setCurrentSaveId(SAMPLE_BAGESHREE.id);
+      setCurrentTitle(SAMPLE_BAGESHREE.title);
+      setSa(SAMPLE_BAGESHREE.sa);
+      setSections(demoSections);
+
+      const firstSection = demoSections[0];
+      if (firstSection) {
+        setActiveSectionId(firstSection.id);
+        setActiveRowIndex(0);
+        setSelectedCell({
+          sectionId: firstSection.id,
+          row: 0,
+          beat: 0,
+          slot: 0,
+        });
+      }
+
+      setStep('review');
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+  if (step === 'review') {
+    setTimeout(() => {
+      reviewActionsRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'end',
+      });
+    }, 150);
+  }
+}, [step]);
 
   function resetAllData() {
     const initialSections = createInitialSections();
@@ -331,21 +400,8 @@ const Composer: React.FC = () => {
   }
 
   function goToPrevSlot() {
-    const row = selectedSection?.rows[selectedCell.row];
-    if (!row) return;
-
     if (selectedCell.slot > 0) {
       setSelectedCell((prev) => ({ ...prev, slot: prev.slot - 1 }));
-      return;
-    }
-
-    if (selectedCell.beat > 0) {
-      const prevBeat = row[selectedCell.beat - 1];
-      setSelectedCell((prev) => ({
-        ...prev,
-        beat: prev.beat - 1,
-        slot: Math.max(0, prevBeat.layout - 1),
-      }));
     }
   }
 
@@ -358,15 +414,6 @@ const Composer: React.FC = () => {
 
     if (selectedCell.slot < beat.layout - 1) {
       setSelectedCell((prev) => ({ ...prev, slot: prev.slot + 1 }));
-      return;
-    }
-
-    if (selectedCell.beat < row.length - 1) {
-      setSelectedCell((prev) => ({
-        ...prev,
-        beat: prev.beat + 1,
-        slot: 0,
-      }));
     }
   }
 
@@ -473,14 +520,16 @@ const Composer: React.FC = () => {
       };
     });
   }
-  async function playAll() {
+  async function playAll(startFromBeginning = false) {
     await Tone.start();
     setPlaying(true);
     setPlaybackCursor(null);
 
+    const startPosition = startFromBeginning ? 0 : pausedPosition || 0;
+
     Tone.Transport.stop();
     Tone.Transport.cancel();
-    Tone.Transport.position = 0;
+    Tone.Transport.position = startPosition;
 
     let currentTime = 0;
     let lastPlayableToken: { swara: string; variant: Variant; octave: -1 | 0 | 1 } | null = null;
@@ -493,12 +542,16 @@ const Composer: React.FC = () => {
       section.rows.forEach((row, rowIndex) => {
         row.forEach((beat, beatIndex) => {
           if (currentTaal.hasTabla) {
-            const bol = currentTaal.bols[beatIndex] || '';
-            Tone.Transport.schedule((tTime) => {
-              const players = tablaPlayersRef.current;
-              if (!players) return;
-              pickTablaPlayer(players, bol).start(tTime);
-            }, currentTime);
+            const bolParts = getBolParts(currentTaal.bols[beatIndex]);
+            const bolSubDuration = beatDuration / Math.max(1, bolParts.length);
+
+            bolParts.forEach((bolPart, bolPartIndex) => {
+              Tone.Transport.schedule((tTime) => {
+                const players = tablaPlayersRef.current;
+                if (!players) return;
+                pickTablaPlayer(players, bolPart).start(tTime);
+              }, currentTime + bolPartIndex * bolSubDuration);
+            });
           }
 
           const subDuration = beatDuration / beat.layout;
@@ -551,18 +604,127 @@ const Composer: React.FC = () => {
       }, tTime);
     }, currentTime + 0.05);
 
-    Tone.Transport.start();
+    Tone.Transport.start(undefined, startPosition);
   }
 
+
   function stopAll() {
-    Tone.Transport.stop();
-    Tone.Transport.cancel();
+    trackEvent('stop_click');
+    setPausedPosition(Tone.Transport.position);
+    Tone.Transport.pause();
     setPlaying(false);
     setPlaybackCursor(null);
   }
 
+  async function previewTaal() {
+    await Tone.start();
+
+    const section = activeSection;
+    if (!section || section.taalId === 'none') return;
+
+    const taal = TAAL_OPTIONS[section.taalId];
+    if (!taal.hasTabla) return;
+
+
+
+    const tempo = section.tempo ?? DEFAULT_TEMPO;
+    const beatDuration = 60 / tempo;
+    const taalBeats = taal.beats ?? taal.bols.length;
+    const cycleDuration = beatDuration * taalBeats;
+
+    trackEvent('preview_taal_click', {
+      taal: section.taalId,
+      tempo,
+    });
+
+    Tone.Transport.stop();
+    Tone.Transport.cancel();
+    Tone.Transport.position = 0;
+
+    Tone.Transport.scheduleRepeat((time) => {
+      taal.bols.forEach((bol, beatIndex) => {
+        const players = tablaPlayersRef.current;
+        if (!players) return;
+
+        const bolParts = getBolParts(bol);
+        const bolSubDuration = beatDuration / Math.max(1, bolParts.length);
+
+        bolParts.forEach((bolPart, bolPartIndex) => {
+          const player = pickTablaPlayer(players, bolPart);
+          player.start(time + beatIndex * beatDuration + bolPartIndex * bolSubDuration);
+        });
+      });
+    }, cycleDuration, 0);
+
+    setPreviewingTaal(true);
+    Tone.Transport.start();
+  }
+
+  async function previewScale() {
+    await Tone.start();
+
+    Tone.Transport.stop();
+    Tone.Transport.cancel();
+
+    const previewSynth = synthRef.current;
+    if (!previewSynth) return;
+
+    trackEvent('preview_scale_click', {
+      sa,
+    });
+
+    const notes = ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni', 'Sa'];
+    const gap = 0.35;
+
+    setPreviewingScale(true);
+
+    notes.forEach((swara, index) => {
+      const octave = index === notes.length - 1 ? 1 : 0;
+      const freq = getFrequency({ swara, variant: 'shuddha', octave }, sa);
+
+      if (freq) {
+        Tone.Transport.schedule((time) => {
+          previewSynth.triggerAttackRelease(freq, 0.28, time);
+        }, index * gap);
+      }
+    });
+
+    Tone.Transport.schedule(() => {
+      setPreviewingScale(false);
+    }, notes.length * gap + 0.2);
+
+    Tone.Transport.start();
+  }
+
+  function stopScalePreview() {
+    Tone.Transport.stop();
+    Tone.Transport.cancel();
+    setPreviewingScale(false);
+  }
+
+  function stopTaalPreview() {
+    Tone.Transport.stop();
+    Tone.Transport.cancel();
+    setPreviewingTaal(false);
+  }
+
+  function restartAll() {
+    trackEvent('restart_click');
+
+    setPausedPosition(0);
+    Tone.Transport.stop();
+    Tone.Transport.cancel();
+    setPlaybackCursor(null);
+    setPlaying(false);
+
+    playAll(true);
+  }
+
   async function exportAudio() {
     try {
+      trackEvent('export_wav_click', {
+        section_count: sections.length,
+      });
       await exportSectionsToWav({
         sections,
         sa,
@@ -580,6 +742,9 @@ const Composer: React.FC = () => {
   }
 
   async function handleSave() {
+    trackEvent('save_click', {
+      section_count: sections.length,
+    });
     const entered = window.prompt('Enter composition name', currentTitle);
     if (!entered) return;
 
@@ -599,6 +764,12 @@ const Composer: React.FC = () => {
   }
 
   async function handleLoad(item: SavedComposition) {
+    if (item.id.startsWith('sample-')) {
+      trackEvent('sample_opened', {
+        sample_id: item.id,
+        sample_title: item.title,
+      });
+    }
     Tone.Transport.stop();
     Tone.Transport.cancel();
     setPlaying(false);
@@ -639,124 +810,257 @@ const Composer: React.FC = () => {
 
   function renderReviewScreen() {
     return (
-      <div style={{ display: 'grid', gap: 12 }}>
+      <div style={{ display: 'grid', gap: 18 }}>
+        <div
+          style={{
+            borderRadius: 26,
+            padding: '24px 26px',
+            background: 'rgba(255,255,255,0.9)',
+            border: '1px solid rgba(120, 53, 15, 0.12)',
+            boxShadow: '0 12px 32px rgba(31,41,55,0.09)',
+          }}
+        >
+          <div style={{ fontSize: 32, fontWeight: 950, color: '#1f2937' }}>
+            Review Composition
+          </div>
+
+          <div style={{ color: '#64748b', fontSize: 15, marginTop: 6 }}>
+            Preview your notation, play it back, then save or export your composition.
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              flexWrap: 'wrap',
+              marginTop: 16,
+            }}
+          >
+            <span
+              style={{
+                padding: '7px 12px',
+                borderRadius: 999,
+                background: '#eff6ff',
+                color: '#1d4ed8',
+                fontSize: 13,
+                fontWeight: 850,
+              }}
+            >
+              Sa: {sa}
+            </span>
+
+            <span
+              style={{
+                padding: '7px 12px',
+                borderRadius: 999,
+                background: '#fff7ed',
+                color: '#92400e',
+                fontSize: 13,
+                fontWeight: 850,
+              }}
+            >
+              {sections.length} section{sections.length === 1 ? '' : 's'}
+            </span>
+
+            <span
+              style={{
+                padding: '7px 12px',
+                borderRadius: 999,
+                background: playing ? '#dcfce7' : '#f8fafc',
+                color: playing ? '#166534' : '#475569',
+                fontSize: 13,
+                fontWeight: 850,
+              }}
+            >
+              {playing ? 'Playing now' : 'Ready to play'}
+            </span>
+          </div>
+        </div>
+
         {sections.map((section, sectionIndex) => {
           const taal = TAAL_OPTIONS[section.taalId];
 
           return (
-            <IonCard key={section.id} style={{ borderRadius: 18, margin: 0 }}>
-              <IonCardContent style={{ padding: 12 }}>
+            <IonCard key={section.id} style={{ borderRadius: 26, margin: 0 }}>
+              <IonCardContent style={{ padding: 22 }}>
                 <div
                   style={{
                     display: 'flex',
-                    alignItems: 'baseline',
-                    gap: 8,
+                    justifyContent: 'space-between',
+                    gap: 14,
                     flexWrap: 'wrap',
-                    marginBottom: 8,
+                    alignItems: 'flex-start',
+                    marginBottom: 16,
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: 15,
-                      fontWeight: 700,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {section.name || `Section ${sectionIndex + 1}`}
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 950,
+                        letterSpacing: '-0.03em',
+                        color: '#92400e',
+                        textTransform: 'uppercase',
+                        marginBottom: 4,
+                      }}
+                    >
+                      Section {sectionIndex + 1}
+                    </div>
+
+                    <div style={{ fontSize: 24, fontWeight: 950, color: '#1f2937' }}>
+                      {section.name || `Section ${sectionIndex + 1}`}
+                    </div>
+
+                    <div style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>
+                      {taal.name} • Tempo {section.tempo ?? DEFAULT_TEMPO}
+                    </div>
                   </div>
 
                   <div
                     style={{
-                      fontSize: 12,
-                      color: '#666',
-                      lineHeight: 1.2,
+                      padding: '7px 12px',
+                      borderRadius: 999,
+                      background: section.taalId === 'none' ? '#fff7ed' : '#eff6ff',
+                      color: section.taalId === 'none' ? '#92400e' : '#1d4ed8',
+                      fontSize: 13,
+                      fontWeight: 850,
                     }}
                   >
-                    {taal.name}
+                    {section.taalId === 'none' ? 'Aalap / Free rhythm' : 'Taal cycle'}
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gap: 8 }}>
+                <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
                   {section.rows.map((row, rowIndex) => (
-                    <div key={rowIndex}>
+                    <div key={rowIndex} style={{ minWidth: 0, maxWidth: '100%' }}>
                       <div
                         style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          gap: 4,
+                          fontSize: 12,
+                          fontWeight: 950,
+                          letterSpacing: '-0.03em',
+                          color: '#64748b',
+                          textTransform: 'uppercase',
+                          marginBottom: 8,
                         }}
                       >
-                        {row.map((beat, beatIndex) => (
-                          <div
-                            key={beatIndex}
-                            style={{
-                              width: 36,
-                              borderRadius: 8,
-                              border: '1px solid rgba(0,0,0,0.07)',
-                              padding: '4px 2px',
-                              background: '#fff',
-                              boxSizing: 'border-box',
-                            }}
-                          >
-                            <div
-                              style={{
-                                textAlign: 'center',
-                                fontSize: 8,
-                                fontWeight: 700,
-                                marginBottom: 3,
-                                color: '#666',
-                                minHeight: 9,
-                                lineHeight: 1,
-                              }}
-                            >
-                              {section.taalId !== 'none' ? taal.markers[beatIndex + 1] || '' : ''}
-                            </div>
+                        Row {rowIndex + 1}
+                      </div>
 
-                            <div style={{ display: 'grid', gap: 3 }}>
-                              {beat.slots.map((slot, slotIndex) => {
-                                const isPlayingSlot =
-                                  playbackCursor?.sectionId === section.id &&
-                                  playbackCursor?.row === rowIndex &&
-                                  playbackCursor?.beat === beatIndex &&
-                                  playbackCursor?.slot === slotIndex;
+                      <div
+                        style={{
+                          width: '100%',
+                          maxWidth: '100%',
+                          minWidth: 0,
+                          overflowX: 'scroll',
+                          overflowY: 'hidden',
+                          paddingBottom: 12,
+                          scrollbarWidth: 'auto',
+                          WebkitOverflowScrolling: 'touch',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: 8,
+                            width: 'max-content',
+                          }}
+                        >
+                          {row.map((beat, beatIndex) => {
+                            const isPlayingBeat =
+                              playbackCursor?.sectionId === section.id &&
+                              playbackCursor?.row === rowIndex &&
+                              playbackCursor?.beat === beatIndex;
 
-                                return (
+                            return (
+                              <div
+                                key={beatIndex}
+                                style={{
+                                  minWidth: 74,
+                                  borderRadius: 16,
+                                  border: isPlayingBeat
+                                    ? '2px solid #2563eb'
+                                    : '1px solid rgba(15,23,42,0.08)',
+                                  padding: 8,
+                                  background: isPlayingBeat ? '#eff6ff' : '#fff',
+                                  boxShadow: isPlayingBeat
+                                    ? '0 10px 24px rgba(37,99,235,0.14)'
+                                    : '0 5px 14px rgba(31,41,55,0.05)',
+                                  transition: 'all 0.12s ease',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    textAlign: 'center',
+                                    fontSize: 10,
+                                    fontWeight: 950,
+                                    letterSpacing: '-0.03em',
+                                    color: '#64748b',
+                                    marginBottom: 4,
+                                  }}
+                                >
+                                  {section.taalId !== 'none'
+                                    ? taal.markers[beatIndex + 1] || `B${beatIndex + 1}`
+                                    : `C${beatIndex + 1}`}
+                                </div>
+
+                                {section.taalId !== 'none' && (
                                   <div
-                                    key={slotIndex}
                                     style={{
-                                      borderRadius: 6,
-                                      minHeight: 18,
-                                      padding: '2px 1px',
                                       textAlign: 'center',
-                                      fontWeight: isPlayingSlot ? 700 : 600,
-                                      fontSize: 8,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      border: isPlayingSlot
-                                        ? '2px solid var(--ion-color-primary)'
-                                        : '1px solid rgba(56,128,255,0.22)',
-                                      background: isPlayingSlot
-                                        ? '#165DFF'
-                                        : 'rgba(56,128,255,0.03)',
-                                      color: isPlayingSlot ? '#fff' : '#555',
-                                      transform: isPlayingSlot ? 'scale(1.05)' : 'scale(1)',
-                                      boxShadow: isPlayingSlot
-                                        ? '0 0 0 2px rgba(56,128,255,0.18)'
-                                        : 'none',
-                                      transition: 'all 0.12s ease',
-                                      lineHeight: 1,
-                                      overflow: 'hidden',
-                                      whiteSpace: 'nowrap',
+                                      fontSize: 10,
+                                      color: '#94a3b8',
+                                      marginBottom: 6,
+                                      minHeight: 12,
                                     }}
                                   >
-                                    {buildSlotToken(slot) || '—'}
+                                    {formatBol(taal.bols[beatIndex])}
                                   </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
+                                )}
+
+                                <div style={{ display: 'grid', gap: 5 }}>
+                                  {beat.slots.map((slot, slotIndex) => {
+                                    const isPlayingSlot =
+                                      playbackCursor?.sectionId === section.id &&
+                                      playbackCursor?.row === rowIndex &&
+                                      playbackCursor?.beat === beatIndex &&
+                                      playbackCursor?.slot === slotIndex;
+
+                                    return (
+                                      <div
+                                        key={slotIndex}
+                                        style={{
+                                          borderRadius: 10,
+                                          minHeight: 26,
+                                          padding: '4px 5px',
+                                          textAlign: 'center',
+                                          fontWeight: isPlayingSlot ? 950 : 850,
+                                          fontSize: 15,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          border: isPlayingSlot
+                                            ? '2px solid #2563eb'
+                                            : '1px solid rgba(37,99,235,0.18)',
+                                          background: isPlayingSlot ? '#2563eb' : '#f8fafc',
+                                          color: isPlayingSlot ? '#fff' : '#1f2937',
+                                          transform: isPlayingSlot ? 'scale(1.04)' : 'scale(1)',
+                                          boxShadow: isPlayingSlot
+                                            ? '0 0 0 3px rgba(37,99,235,0.12)'
+                                            : 'none',
+                                          transition: 'all 0.12s ease',
+                                          lineHeight: 1,
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                      >
+                                        {buildSlotToken(slot) || '—'}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -769,371 +1073,569 @@ const Composer: React.FC = () => {
     );
   }
 
-  return (
-    <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <div
-            style={{
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 56,
-              padding: '0 12px',
-            }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                left: 12,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                display: 'flex',
-                gap: 8,
-                alignItems: 'center',
-              }}
+  const actionButtonStyle = pillButton;
+  const primaryActionStyle = primaryPillButton;
+
+  async function playCurrentRow() {
+    await Tone.start();
+    trackEvent('play_row_click', {
+      section_id: activeSection?.id,
+      row_index: activeRowIndex + 1,
+      taal: activeSection?.taalId,
+    });
+    setPlaying(true);
+    setPlaybackCursor(null);
+
+    Tone.Transport.stop();
+    Tone.Transport.cancel();
+    Tone.Transport.position = 0;
+
+    const section = activeSection;
+    const row = section?.rows[activeRowIndex];
+    if (!section || !row) return;
+
+    const currentTaal = TAAL_OPTIONS[section.taalId];
+    const sectionTempo = section.tempo ?? DEFAULT_TEMPO;
+    const beatDuration = 60 / sectionTempo;
+
+    let currentTime = 0;
+    let lastPlayableToken: { swara: string; variant: Variant; octave: -1 | 0 | 1 } | null = null;
+
+    row.forEach((beat, beatIndex) => {
+      if (currentTaal.hasTabla) {
+        const bolParts = getBolParts(currentTaal.bols[beatIndex]);
+        const bolSubDuration = beatDuration / Math.max(1, bolParts.length);
+
+        bolParts.forEach((bolPart, bolPartIndex) => {
+          Tone.Transport.schedule((tTime) => {
+            const players = tablaPlayersRef.current;
+            if (!players) return;
+            pickTablaPlayer(players, bolPart).start(tTime);
+          }, currentTime + bolPartIndex * bolSubDuration);
+        });
+      }
+
+      const subDuration = beatDuration / beat.layout;
+
+      beat.slots.forEach((slot, slotIndex) => {
+        const slotTime = currentTime + slotIndex * subDuration;
+        const token = buildSlotToken(slot);
+
+        Tone.Transport.schedule((tTime) => {
+          Tone.Draw.schedule(() => {
+            setPlaybackCursor({
+              sectionId: section.id,
+              row: activeRowIndex,
+              beat: beatIndex,
+              slot: slotIndex,
+            });
+          }, tTime);
+        }, slotTime);
+
+        if (!token) return;
+
+        let freq: number | null = null;
+
+        if (token === '-') {
+          if (lastPlayableToken) {
+            freq = getFrequency(lastPlayableToken, sa);
+          }
+        } else {
+          const parsed = parseToken(token);
+          freq = getFrequency(parsed, sa);
+          lastPlayableToken = parsed;
+        }
+
+        if (freq) {
+          Tone.Transport.schedule((tTime) => {
+            synthRef.current?.triggerAttackRelease(freq, subDuration * 0.95, tTime);
+          }, slotTime);
+        }
+      });
+
+      currentTime += beatDuration;
+    });
+
+    Tone.Transport.schedule((tTime) => {
+      Tone.Draw.schedule(() => {
+        setPlaying(false);
+        setPlaybackCursor(null);
+      }, tTime);
+    }, currentTime + 0.05);
+
+    Tone.Transport.start();
+  }
+
+  async function playCurrentSection() {
+    await Tone.start();
+    trackEvent('play_section_click', {
+      section_id: activeSection?.id,
+      taal: activeSection?.taalId,
+    });
+
+    setPlaying(true);
+    setPlaybackCursor(null);
+
+    Tone.Transport.stop();
+    Tone.Transport.cancel();
+    Tone.Transport.position = 0;
+
+    const section = activeSection;
+    if (!section) return;
+
+    const currentTaal = TAAL_OPTIONS[section.taalId];
+    const sectionTempo = section.tempo ?? DEFAULT_TEMPO;
+    const beatDuration = 60 / sectionTempo;
+
+    let currentTime = 0;
+    let lastPlayableToken: { swara: string; variant: Variant; octave: -1 | 0 | 1 } | null = null;
+
+    section.rows.forEach((row, rowIndex) => {
+      row.forEach((beat, beatIndex) => {
+        if (currentTaal.hasTabla) {
+          const bolParts = getBolParts(currentTaal.bols[beatIndex]);
+          const bolSubDuration = beatDuration / Math.max(1, bolParts.length);
+
+          bolParts.forEach((bolPart, bolPartIndex) => {
+            Tone.Transport.schedule((tTime) => {
+              const players = tablaPlayersRef.current;
+              if (!players) return;
+              pickTablaPlayer(players, bolPart).start(tTime);
+            }, currentTime + bolPartIndex * bolSubDuration);
+          });
+        }
+
+        const subDuration = beatDuration / beat.layout;
+
+        beat.slots.forEach((slot, slotIndex) => {
+          const slotTime = currentTime + slotIndex * subDuration;
+          const token = buildSlotToken(slot);
+
+          Tone.Transport.schedule((tTime) => {
+            Tone.Draw.schedule(() => {
+              setPlaybackCursor({
+                sectionId: section.id,
+                row: rowIndex,
+                beat: beatIndex,
+                slot: slotIndex,
+              });
+            }, tTime);
+          }, slotTime);
+
+          if (!token) return;
+
+          let freq: number | null = null;
+
+          if (token === '-') {
+            if (lastPlayableToken) {
+              freq = getFrequency(lastPlayableToken, sa);
+            }
+          } else {
+            const parsed = parseToken(token);
+            freq = getFrequency(parsed, sa);
+            lastPlayableToken = parsed;
+          }
+
+          if (freq) {
+            Tone.Transport.schedule((tTime) => {
+              synthRef.current?.triggerAttackRelease(freq, subDuration * 0.95, tTime);
+            }, slotTime);
+          }
+        });
+
+        currentTime += beatDuration;
+      });
+    });
+
+    Tone.Transport.schedule((tTime) => {
+      Tone.Draw.schedule(() => {
+        setPlaying(false);
+        setPlaybackCursor(null);
+      }, tTime);
+    }, currentTime + 0.05);
+
+    Tone.Transport.start();
+  }
+  const renderComposerActions = () => (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 14,
+        flexWrap: 'wrap',
+        marginBottom: 18,
+        padding: '14px 18px',
+        borderRadius: 22,
+        background: 'rgba(255,255,255,0.88)',
+        border: '1px solid rgba(120, 53, 15, 0.12)',
+        boxShadow: '0 10px 28px rgba(31,41,55,0.08)',
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 15, fontWeight: 950, letterSpacing: '-0.03em', color: '#1f2937' }}>
+          {step === 'setup' && 'Composition Setup'}
+          {step === 'compose' && 'Composer Workspace'}
+          {step === 'review' && 'Review & Export'}
+        </div>
+
+        <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+          {step === 'setup' && 'Choose scale, sections, and saved work before composing.'}
+          {step === 'compose' && 'Edit swaras, taal, rhythm, rows, and beat patterns.'}
+          {step === 'review' && 'Play, save, and export your finished composition.'}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        {step === 'setup' && (
+          <>
+            <IonButton
+              fill="outline"
+              color="danger"
+              onClick={resetAllData}
+              style={actionButtonStyle}
             >
-              <IonButton fill="clear" size="small" routerLink="/home">
-                <IonIcon slot="start" icon={homeOutline} />
-                Home
-              </IonButton>
+              Reset Composition
+            </IonButton>
 
-              {(step === 'compose' || step === 'review') && (
-                <IonButton
-                  fill="clear"
-                  size="small"
-                  onClick={() => setStep(step === 'compose' ? 'setup' : 'compose')}
-                >
-                  <IonIcon slot="start" icon={chevronBack} />
-                  Back
-                </IonButton>
-              )}
-            </div>
-
-            <div style={{ textAlign: 'center', lineHeight: 1.1 }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: '#1f2937' }}>
-                Sargam Studio
-              </div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 3 }}>
-                Hindustani Music Composer
-              </div>
-            </div>
-
-            <div
-              style={{
-                position: 'absolute',
-                right: 12,
-                top: '50%',
-                transform: 'translateY(-50%)',
-              }}
-            >
-              <IonButton fill="clear" routerLink="/help">
-                Help
-              </IonButton>
-              <IonBadge color="light">Sa {sa}</IonBadge>
-            </div>
-          </div>
-        </IonToolbar>
-      </IonHeader>
-
-      <IonContent fullscreen>
-        <div
-          style={{
-            padding: step === 'compose' ? '22px 18px 90px' : '12px 18px 90px',
-            maxWidth: step === 'compose' ? 1040 : 860,
-            margin: '0 auto',
-          }}
-        >
-          {step === 'setup' && (
-            <div style={{ textAlign: 'center', margin: '14px 0 18px' }}>
-              <div style={{ fontSize: 42, fontWeight: 900, color: '#1f2937' }}>
-                Sargam Studio
-              </div>
-              <div style={{ fontSize: 17, color: '#6b7280', marginTop: 8 }}>
-                Create, play, and export Hindustani sargam compositions.
-              </div>
-            </div>
-          )}
-
-          {step === 'setup' && (
-            <SetupScreen
-              sa={sa}
-              sections={sections}
-              onSetSa={setSa}
-              onAddSection={addSection}
-              onRemoveSection={removeSection}
-            />
-          )}
-
-          {step === 'setup' && savedItems.length > 0 && (
-            <IonCard style={{ marginTop: 12, borderRadius: 18 }}>
-              <IonCardContent>
-                <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>
-                  Saved Compositions
-                </div>
-
-                <div style={{ display: 'grid', gap: 10 }}>
-                  {savedItems.map((item) => (
-                    <div
-                      key={item.id}
-                      style={{
-                        border: '1px solid rgba(0,0,0,0.08)',
-                        borderRadius: 12,
-                        padding: 12,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: 10,
-                      }}
-                    >
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 700 }}>{item.title}</div>
-                        <div style={{ fontSize: 12, color: '#666' }}>
-                          Sa {item.sa} • {new Date(item.updatedAt).toLocaleString()}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <IonButton
-                          size="small"
-                          fill="outline"
-                          onClick={() => handleLoad(item)}
-                          style={{
-                            '--border-radius': '999px',
-                            fontWeight: 700,
-                            minHeight: '38px',
-                            textTransform: 'none',
-                          }}
-                        >
-                          Open
-                        </IonButton>
-
-                        <IonButton
-                          size="small"
-                          fill="outline"
-                          color="danger"
-                          onClick={() => handleDeleteSaved(item.id)}
-                          style={{
-                            '--border-radius': '999px',
-                            fontWeight: 700,
-                            minHeight: '38px',
-                            textTransform: 'none',
-                          }}
-                        >
-                          Delete
-                        </IonButton>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </IonCardContent>
-            </IonCard>
-          )}
-
-          {step === 'compose' && (
-            <ComposerScreen
-              sections={sections}
-              activeSection={activeSection}
-              activeSectionId={activeSectionId}
-              activeRowIndex={activeRowIndex}
-              selectedCell={selectedCell}
-              currentRow={currentRow}
-              isFreeRow={isFreeRow}
-              activeSectionText={activeSectionText}
-              onSetActiveSectionId={(id: number) => {
-                setActiveSectionId(id);
+            <IonButton
+              onClick={() => {
+                trackEvent('start_composing_click');
+                const firstSection = sections[0];
+                setActiveSectionId(firstSection.id);
+                setActiveRowIndex(0);
                 setSelectedCell({
-                  sectionId: id,
+                  sectionId: firstSection.id,
                   row: 0,
                   beat: 0,
                   slot: 0,
                 });
+                setStep('compose');
               }}
-              onPrevSection={goToPrevSection}
-              onNextSection={goToNextSection}
-              onUpdateSectionName={(sectionId: number, name: string) =>
-                updateSection(sectionId, (s) => ({
-                  ...s,
-                  name,
-                }))
-              }
-              onUpdateSectionTaal={(sectionId: number, nextTaalId: TaalId) =>
-                updateSection(sectionId, (s) => {
-                  const next = { ...s, taalId: nextTaalId };
-                  if (nextTaalId !== 'none') {
-                    next.rows = s.rows.map((row) =>
-                      normalizeFixedRow(row, TAAL_OPTIONS[nextTaalId].beats || 8)
-                    );
-                  }
-                  return normalizeSection(next);
-                })
-              }
-              onUpdateSectionTempo={(sectionId: number, nextTempo: number) =>
-                updateSection(sectionId, (s) => ({
-                  ...s,
-                  tempo: Number.isFinite(nextTempo) && nextTempo > 0 ? nextTempo : DEFAULT_TEMPO,
-                }))
-              }
-              onSetActiveRowIndex={(idx: number) => {
-                setActiveRowIndex(idx);
-                setSelectedCell({
-                  sectionId: activeSection.id,
-                  row: idx,
-                  beat: 0,
-                  slot: 0,
+              style={primaryActionStyle}
+            >
+              Continue to Composer
+            </IonButton>
+          </>
+        )}
+
+        {step === 'compose' && (
+          <>
+            <IonButton
+              fill="outline"
+              onClick={() => setStep('setup')}
+              style={actionButtonStyle}
+            >
+              Back to Setup
+            </IonButton>
+
+            <IonButton
+              fill="outline"
+              onClick={handleSave}
+              style={actionButtonStyle}
+            >
+              Save
+            </IonButton>
+
+            <IonButton
+              fill="outline"
+              onClick={playing ? stopAll : playCurrentSection}
+              style={actionButtonStyle}
+            >
+              <IonIcon slot="start" icon={playing ? stop : play} />
+              {playing ? 'Stop' : 'Play Section'}
+            </IonButton>
+
+            <IonButton
+              onClick={() => setStep('review')}
+              style={primaryActionStyle}
+            >
+              Review Composition
+            </IonButton>
+          </>
+        )}
+
+        {step === 'review' && (
+          <>
+            <IonButton
+              fill="outline"
+              onClick={() => setStep('compose')}
+              style={actionButtonStyle}
+            >
+              Back to Composer
+            </IonButton>
+
+            <IonButton
+              fill="outline"
+              onClick={handleSave}
+              style={actionButtonStyle}
+            >
+              Save
+            </IonButton>
+
+            <IonButton
+              fill="outline"
+              onClick={restartAll}
+              style={actionButtonStyle}
+            >
+              Restart
+            </IonButton>
+            <IonButton
+              onClick={() => {
+                trackEvent('play_full_click', {
+                  section_count: sections.length,
                 });
-              }}
-              onAddRow={addRow}
-              onAddCellToRow={addCellToRow}
-              onRemoveSelectedCellFromRow={removeSelectedCellFromRow}
-              onClearRow={clearRow}
-              onRemoveRow={removeRow}
-              onSelectBeat={(cell) => {
-                setSelectedCell(cell);
-              }}
-              onOpenEditor={(cell) => {
-                setSelectedCell(cell);
-                setIsEditorOpen(true);
-              }}
-              onTextChange={(value: string) =>
-                updateSection(activeSection.id, (s) => ({
-                  ...s,
-                  rows: textToGrid(
-                    value,
-                    s.taalId === 'none',
-                    TAAL_OPTIONS[s.taalId].beats
-                  ),
-                }))
-              }
-            />
-          )}
 
-          {step === 'review' && renderReviewScreen()}
-        </div>
-      </IonContent>
+                playAll(false);
+              }}
+              disabled={playing}
+              style={primaryActionStyle}
+            >
+              <IonIcon slot="start" icon={play} />
+              Play
+            </IonButton>
 
-      <IonFooter>
-        <IonToolbar>
+            <IonButton
+              fill="outline"
+              onClick={stopAll}
+              style={actionButtonStyle}
+            >
+              <IonIcon slot="start" icon={stop} />
+              Stop
+            </IonButton>
+
+            <IonButton
+              fill="outline"
+              onClick={exportAudio}
+              style={actionButtonStyle}
+            >
+              Export
+            </IonButton>
+          </>
+        )}
+
+
+      </div>
+    </div>
+  );
+  return (
+    <IonPage>
+
+      <SiteHeader showHome={true} showHelp={true} />
+      <IonContent fullscreen>
+        <div style={pageBackground}>
           <div
             style={{
-              maxWidth: 980,
-              margin: '0 auto',
-              padding: '12px 18px',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: 12,
-              flexWrap: 'wrap',
+              ...pageContainer(step === 'setup' ? 860 : 1040),
+              paddingTop: step === 'setup' ? 28 : 34,
             }}
           >
-            {step === 'setup' && (
-              <>
-                <IonButton
-                  fill="outline"
-                  color="danger"
-                  onClick={resetAllData}
-                  style={{
-                    '--border-radius': '16px',
-                    fontWeight: 900,
-                    letterSpacing: 0.8,
-                  }}
-                >
-                  Reset Composition
-                </IonButton>
 
-                <IonButton
-                  onClick={() => {
-                    const firstSection = sections[0];
-                    setActiveSectionId(firstSection.id);
-                    setActiveRowIndex(0);
-                    setSelectedCell({
-                      sectionId: firstSection.id,
-                      row: 0,
-                      beat: 0,
-                      slot: 0,
-                    });
-                    setStep('compose');
-                  }}
-                  style={{
-                    '--border-radius': '16px',
-                    '--box-shadow': '0 12px 24px rgba(37, 99, 235, 0.25)',
-                    fontWeight: 900,
-                    letterSpacing: 0.8,
-                  }}
-                >
-                  Continue to Composer
-                </IonButton>
-              </>
+
+            {step === 'setup' && (
+              <div style={{ textAlign: 'center', margin: '14px 0 18px' }}>
+                <div style={{ fontSize: 42, fontWeight: 950, letterSpacing: '-0.03em', color: '#1f2937' }}>
+                  Sargam Studio
+                </div>
+                <div style={{ fontSize: 17, color: '#6b7280', marginTop: 8 }}>
+                  Create, play, and export Hindustani sargam compositions.
+                </div>
+              </div>
+            )}
+
+            {step === 'setup' && (
+              <SetupScreen
+                sa={sa}
+                sections={sections}
+                onSetSa={setSa}
+                onAddSection={addSection}
+                onRemoveSection={removeSection}
+                onPreviewScale={previewingScale ? stopScalePreview : previewScale}
+                previewingScale={previewingScale}
+              />
+            )}
+
+            {step === 'setup' && renderComposerActions()}
+
+            {step === 'setup' && savedItems.length > 0 && (
+              <IonCard style={{ marginTop: 12, borderRadius: 18 }}>
+                <IonCardContent>
+                  <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>
+                    Saved Compositions
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {[SAMPLE_BAGESHREE, ...savedItems].map((item) => (
+                      <div
+                        key={item.id}
+                        style={{
+                          border: '1px solid rgba(0,0,0,0.08)',
+                          borderRadius: 12,
+                          padding: 12,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: 10,
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 700 }}>{item.title}</div>
+                          <div style={{ fontSize: 12, color: '#666' }}>
+                            Sa {item.sa} • {new Date(item.updatedAt).toLocaleString()}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <IonButton
+                            size="small"
+                            fill="outline"
+                            onClick={() => handleLoad(item)}
+                            style={{
+                              '--border-radius': '999px',
+                              fontWeight: 700,
+                              minHeight: '38px',
+                              textTransform: 'none',
+                            }}
+                          >
+                            Open
+                          </IonButton>
+
+                          {!item.id.startsWith('sample-') && (
+                            <IonButton
+                              size="small"
+                              fill="outline"
+                              color="danger"
+                              onClick={() => handleDeleteSaved(item.id)}
+                              style={{
+                                '--border-radius': '999px',
+                                fontWeight: 700,
+                                minHeight: '38px',
+                                textTransform: 'none',
+                              }}
+                            >
+                              Delete
+                            </IonButton>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </IonCardContent>
+              </IonCard>
             )}
 
             {step === 'compose' && (
-              <>
-                <IonButton
-                  fill="outline"
-                  onClick={handleSave}
-                  style={{ '--border-radius': '16px', fontWeight: 900 }}
-                >
-                  Save
-                </IonButton>
+              <ComposerScreen
+                sections={sections}
+                activeSection={activeSection}
+                activeSectionId={activeSectionId}
+                activeRowIndex={activeRowIndex}
+                selectedCell={selectedCell}
+                currentRow={currentRow}
+                isFreeRow={isFreeRow}
+                activeSectionText={activeSectionText}
+                onSetActiveSectionId={(id: number) => {
+                  setActiveSectionId(id);
+                  setSelectedCell({
+                    sectionId: id,
+                    row: 0,
+                    beat: 0,
+                    slot: 0,
+                  });
+                }}
+                onPrevSection={goToPrevSection}
+                onNextSection={goToNextSection}
+                onUpdateSectionName={(sectionId: number, name: string) =>
+                  updateSection(sectionId, (s) => ({
+                    ...s,
+                    name,
+                  }))
+                }
+                onUpdateSectionTaal={(sectionId: number, nextTaalId: TaalId) =>
+                  updateSection(sectionId, (s) => {
+                    const next = { ...s, taalId: nextTaalId };
+                    if (nextTaalId !== 'none') {
+                      next.rows = s.rows.map((row) =>
+                        normalizeFixedRow(row, TAAL_OPTIONS[nextTaalId].beats || 8)
+                      );
+                    }
+                    return normalizeSection(next);
+                  })
+                }
+                onUpdateSectionTempo={(sectionId: number, nextTempo: number) =>
+                  updateSection(sectionId, (s) => ({
+                    ...s,
+                    tempo: Number.isFinite(nextTempo) && nextTempo > 0 ? nextTempo : DEFAULT_TEMPO,
+                  }))
+                }
+                onSetActiveRowIndex={(idx: number) => {
+                  setActiveRowIndex(idx);
+                  setSelectedCell({
+                    sectionId: activeSection.id,
+                    row: idx,
+                    beat: 0,
+                    slot: 0,
+                  });
+                }}
+                onAddRow={addRow}
+                onAddCellToRow={addCellToRow}
+                onRemoveSelectedCellFromRow={removeSelectedCellFromRow}
+                onClearRow={clearRow}
+                onRemoveRow={removeRow}
+                onSelectBeat={(cell) => {
+                  setSelectedCell(cell);
+                }}
+                onOpenEditor={(cell) => {
+                  trackEvent('sur_editor_open', {
+                    section_id: cell.sectionId,
+                    row_index: cell.row + 1,
+                    beat_index: cell.beat + 1,
+                    slot_index: cell.slot + 1,
+                  });
 
-                <IonButton
-                  onClick={() => setStep('review')}
-                  style={{
-                    '--border-radius': '16px',
-                    '--box-shadow': '0 12px 24px rgba(37, 99, 235, 0.25)',
-                    fontWeight: 900,
-                  }}
-                >
-                  Review Composition
-                </IonButton>
-              </>
+                  setSelectedCell(cell);
+                  setIsEditorOpen(true);
+                }}
+                onTextChange={(value: string) =>
+                  updateSection(activeSection.id, (s) => ({
+                    ...s,
+                    rows: textToGrid(
+                      value,
+                      s.taalId === 'none',
+                      TAAL_OPTIONS[s.taalId].beats
+                    ),
+                  }))
+                }
+                onPlayRow={playing ? stopAll : playCurrentRow}
+                playing={playing}
+                onPreviewTaal={previewingTaal ? stopTaalPreview : previewTaal}
+                previewingTaal={previewingTaal}
+                sa={sa}
+                onSetSa={setSa}
+                onPreviewScale={previewingScale ? stopScalePreview : previewScale}
+                previewingScale={previewingScale}
+              />
+            )}
+
+            {step === 'compose' && (
+              <div style={{ marginTop: 22 }}>
+                {renderComposerActions()}
+              </div>
             )}
 
             {step === 'review' && (
               <>
-                <IonButton
-                  fill="outline"
-                  onClick={handleSave}
-                  style={{ '--border-radius': '16px', fontWeight: 900 }}
-                >
-                  Save
-                </IonButton>
+                {renderReviewScreen()}
 
-                <IonButton
-                  onClick={playAll}
-                  disabled={playing}
-                  style={{
-                    '--border-radius': '16px',
-                    '--box-shadow': '0 12px 24px rgba(37, 99, 235, 0.25)',
-                    fontWeight: 900,
-                  }}
-                >
-                  <IonIcon slot="start" icon={play} />
-                  Play
-                </IonButton>
-
-                <IonButton
-                  fill="outline"
-                  onClick={stopAll}
-                  style={{ '--border-radius': '16px', fontWeight: 900 }}
-                >
-                  <IonIcon slot="start" icon={stop} />
-                  Stop
-                </IonButton>
-
-                <IonButton
-                  fill="outline"
-                  onClick={exportAudio}
-                  style={{ '--border-radius': '16px', fontWeight: 900 }}
-                >
-                  Export
-                </IonButton>
+                <div ref={reviewActionsRef} style={{ marginTop: 22 }}>
+                  {renderComposerActions()}
+                </div>
               </>
             )}
           </div>
-        </IonToolbar>
-      </IonFooter>
+          <SiteFooter />
+        </div>
+      </IonContent>
 
       <SurEditorModal
         isOpen={isEditorOpen}
@@ -1161,6 +1663,7 @@ const Composer: React.FC = () => {
         onNextBeat={goToNextBeat}
       />
     </IonPage>
+
   );
 };
 

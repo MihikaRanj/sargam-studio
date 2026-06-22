@@ -40,11 +40,11 @@ type Props = {
 
 const sectionTitle: React.CSSProperties = {
   fontSize: 11,
-  fontWeight: 900,
+  fontWeight: 950,
+  letterSpacing: '-0.03em',
   color: '#64748b',
   margin: '10px 0 6px',
   textTransform: 'uppercase',
-  letterSpacing: 0.7,
 };
 
 const smallHint: React.CSSProperties = {
@@ -78,34 +78,83 @@ const buttonRow: React.CSSProperties = {
   flexWrap: 'nowrap',
 };
 
+const headerButtonStyle = {
+  '--border-radius': '999px',
+  fontWeight: 850,
+  letterSpacing: '0.3px',
+  textTransform: 'none',
+} as React.CSSProperties;
 
+const headerPrimaryButtonStyle = {
+  '--border-radius': '999px',
+  '--box-shadow': '0 8px 18px rgba(37,99,235,0.18)',
+  fontWeight: 900,
+  letterSpacing: '0.3px',
+  textTransform: 'none',
+} as React.CSSProperties;
+
+const KOMAL_SWARAS = ['Re', 'Ga', 'Dha', 'Ni'];
+const TEEVRA_SWARAS = ['Ma'];
+
+function getValidVariantForSwara(
+  swara: string,
+  variant: Variant
+): Variant {
+  if (swara === 'Sa' || swara === 'Pa') return 'shuddha';
+
+  if (variant === 'komal' && !KOMAL_SWARAS.includes(swara)) {
+    return 'shuddha';
+  }
+
+  if (variant === 'teevra' && !TEEVRA_SWARAS.includes(swara)) {
+    return 'shuddha';
+  }
+
+  return variant;
+}
+
+function canUseKomal(swara: string) {
+  return KOMAL_SWARAS.includes(swara);
+}
+
+function canUseTeevra(swara: string) {
+  return TEEVRA_SWARAS.includes(swara);
+}
 
 function optionButton(
   label: string,
   selected: boolean,
   onClick: () => void,
   subLabel?: string,
-  minWidth = 76
+  minWidth = 76,
+  disabled = false
 ) {
   return (
     <button
       key={label}
       type="button"
-      onClick={onClick}
+      disabled={disabled}
+      onClick={disabled ? undefined : onClick}
       style={{
         border: selected ? '2px solid #2563eb' : '1px solid rgba(120, 53, 15, 0.14)',
-        borderRadius: 12,
-        padding: subLabel ? '6px 10px' : '8px 12px',
-        background: selected ? '#eff6ff' : 'rgba(255,255,255,0.95)',
-        color: selected ? '#1d4ed8' : '#1f2937',
-        cursor: 'pointer',
+        borderRadius: 999,
+        padding: subLabel ? '7px 14px' : '9px 16px',
+        background: disabled
+          ? '#f1f5f9'
+          : selected
+            ? '#eff6ff'
+            : 'rgba(255,255,255,0.96)',
+        color: disabled ? '#94a3b8' : selected ? '#1d4ed8' : '#1f2937',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.65 : 1,
         minWidth,
         minHeight: subLabel ? 44 : 38,
         textAlign: 'center',
-        fontWeight: 800,
+        fontWeight: 900,
         fontSize: 14,
-        lineHeight: 1.15,
-        boxShadow: selected ? '0 4px 12px rgba(37, 99, 235, 0.12)' : 'none',
+        lineHeight: 1.12,
+        boxShadow: selected ? '0 8px 18px rgba(37,99,235,0.14)' : '0 3px 10px rgba(31,41,55,0.04)',
+        transition: 'all 0.15s ease',
       }}
     >
       <div>{label}</div>
@@ -166,47 +215,49 @@ const SurEditorModal: React.FC<Props> = ({
       }}
     >
       <IonHeader>
-        <IonToolbar>
-          <IonTitle>Sur Editor</IonTitle>
-
-          <IonButtons slot="end">
-            <IonButton fill="clear" onClick={onPrevBeat} title="Move to the previous beat">
+        <IonToolbar
+          style={{
+            '--background': 'rgba(255,255,255,0.96)',
+            '--border-width': '0',
+            boxShadow: '0 8px 24px rgba(31,41,55,0.14)',
+          }}
+        >
+          <IonButtons slot="start">
+            <IonButton fill="outline" onClick={onPrevBeat} style={headerButtonStyle}>
               <IonIcon slot="start" icon={chevronBack} />
               Prev Beat
             </IonButton>
+          </IonButtons>
 
-            <IonButton fill="clear" onClick={onNextBeat} title="Move to the next beat">
+          <IonTitle style={{ textAlign: 'center', fontWeight: 900 }}>
+            Sur Editor
+          </IonTitle>
+
+          <IonButtons slot="end">
+            <IonButton fill="outline" onClick={onNextBeat} style={headerButtonStyle}>
               Next Beat
               <IonIcon slot="end" icon={chevronForward} />
             </IonButton>
-
-            <IonButton
-              fill="clear"
-              onClick={onCopyPrev}
-              title="Copy the previous note into the current note position"
-            >
-              <IonIcon slot="start" icon={copyOutline} />
-              Copy Previous
-            </IonButton>
-
-            <IonButton fill="clear" onClick={openHelp} title="Open help page">
-              <IonIcon icon={helpCircleOutline} />
-            </IonButton>
-
-            <IonButton onClick={onClose}>Done</IonButton>
           </IonButtons>
         </IonToolbar>
       </IonHeader>
 
       <IonContent scrollY={true} fullscreen>
-        <div style={{ padding: 18, paddingBottom: 42 }}>
+        <div
+          style={{
+            paddingLeft: 16,
+            paddingRight: 16,
+            paddingTop: 8,
+            paddingBottom: 12,
+          }}
+        >
           <div
             style={{
               border: '1px solid rgba(120, 53, 15, 0.12)',
               borderRadius: 16,
               padding: '10px 16px',
               background: 'rgba(255,255,255,0.94)',
-              marginBottom: 10,
+              marginBottom: 6,
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -264,33 +315,72 @@ const SurEditorModal: React.FC<Props> = ({
           <div style={{ marginTop: 10 }}>
             <div style={sectionTitle}>Note Navigation</div>
 
-            <div style={{ display: 'flex', gap: 8 }}>
-              <IonButton size="small" fill="outline" onClick={onPrevSlot}>
-                <IonIcon slot="start" icon={chevronBack} />
-                Prev Note
-              </IonButton>
-
-              <IonButton size="small" fill="outline" onClick={onNextSlot}>
-                Next Note
-                <IonIcon slot="end" icon={chevronForward} />
-              </IonButton>
-            </div>
-
-            <div style={smallHint}>
-              Move within notes inside this beat.
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-            {selectedBeat.slots.map((_, idx) => (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+              }}
+            >
               <IonButton
-                key={idx}
                 size="small"
-                fill={selectedCell.slot === idx ? 'solid' : 'outline'}
-                onClick={() => onSetSelectedSlotIndex(idx)}
+                fill="outline"
+                onClick={onPrevSlot}
+                style={{
+                  ...headerButtonStyle,
+                  minWidth: 42,
+                  height: 34,
+                }}
+                title="Previous note"
               >
-                {selectedBeat.layout === 1 ? 'Note' : `Note ${idx + 1}`}
+                <IonIcon slot="icon-only" icon={chevronBack} />
               </IonButton>
-            ))}
+
+              {selectedBeat.slots.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => onSetSelectedSlotIndex(idx)}
+                  style={{
+                    border:
+                      selectedCell.slot === idx
+                        ? '2px solid #2563eb'
+                        : '1px solid rgba(120, 53, 15, 0.14)',
+                    borderRadius: 999,
+                    padding: '7px 13px',
+                    background: selectedCell.slot === idx ? '#eff6ff' : 'rgba(255,255,255,0.96)',
+                    color: selectedCell.slot === idx ? '#1d4ed8' : '#1f2937',
+                    fontWeight: 900,
+                    fontSize: 13,
+                    lineHeight: 1,
+                    cursor: 'pointer',
+                    boxShadow:
+                      selectedCell.slot === idx
+                        ? '0 8px 18px rgba(37,99,235,0.14)'
+                        : '0 3px 10px rgba(31,41,55,0.04)',
+                  }}
+                >
+                  {selectedBeat.layout === 1 ? 'Note' : `Note ${idx + 1}`}
+                </button>
+              ))}
+
+              <IonButton
+                size="small"
+                fill="outline"
+                onClick={onNextSlot}
+                style={{
+                  ...headerButtonStyle,
+                  minWidth: 42,
+                  height: 34,
+                }}
+                title="Next note"
+              >
+                <IonIcon slot="icon-only" icon={chevronForward} />
+              </IonButton>
+            </div>
+
+            <div style={smallHint}>Use arrows or note buttons to move inside this beat.</div>
           </div>
 
           <div style={threeColumnGrid}>
@@ -334,14 +424,28 @@ const SurEditorModal: React.FC<Props> = ({
                     {optionButton('Shuddha', selectedSlot.variant === 'shuddha', () =>
                       onSetSelectedSlot({ variant: 'shuddha' as Variant })
                     )}
-                    {optionButton('Komal', selectedSlot.variant === 'komal', () =>
-                      onSetSelectedSlot({ variant: 'komal' as Variant })
+
+                    {optionButton(
+                      'Komal',
+                      selectedSlot.variant === 'komal',
+                      () => onSetSelectedSlot({ variant: 'komal' as Variant }),
+                      undefined,
+                      76,
+                      !canUseKomal(selectedSlot.swara)
                     )}
-                    {optionButton('Teevra', selectedSlot.variant === 'teevra', () =>
-                      onSetSelectedSlot({ variant: 'teevra' as Variant })
+
+                    {optionButton(
+                      'Teevra',
+                      selectedSlot.variant === 'teevra',
+                      () => onSetSelectedSlot({ variant: 'teevra' as Variant }),
+                      undefined,
+                      76,
+                      !canUseTeevra(selectedSlot.swara)
                     )}
                   </div>
-                  <div style={smallHint}>Komal lowers the swara. Teevra raises Ma.</div>
+                  <div style={smallHint}>
+                    Re, Ga, Dha, and Ni can be Komal. Ma can be Teevra. Sa and Pa stay fixed.
+                  </div>
                 </div>
               </>
             )}
@@ -353,11 +457,15 @@ const SurEditorModal: React.FC<Props> = ({
 
               <div style={swaraGrid}>
                 {SWARA_OPTIONS.map((sw) =>
-                  optionButton(sw, selectedSlot.swara === sw, () =>
-                    onSetSelectedSlot({
-                      swara: sw as Swara,
-                      mode: 'note',
-                    }),
+                  optionButton(
+                    sw,
+                    selectedSlot.swara === sw,
+                    () =>
+                      onSetSelectedSlot({
+                        swara: sw as Swara,
+                        mode: 'note',
+                        variant: getValidVariantForSwara(sw, selectedSlot.variant),
+                      }),
                     undefined,
                     84
                   )
@@ -368,32 +476,18 @@ const SurEditorModal: React.FC<Props> = ({
 
           <div
             style={{
-              marginTop: 12,
-              border: '1px solid rgba(120, 53, 15, 0.12)',
-              borderRadius: 16,
-              padding: '10px 16px',
-              background: 'rgba(255,255,255,0.94)',
               display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 14,
+              justifyContent: 'center',
+              marginTop: 12,
+              marginBottom: 0,
             }}
           >
-            <div>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>
-                Notation preview
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 850, color: '#1f2937' }}>
-                {buildSlotToken(selectedSlot) || '—'}
-              </div>
-            </div>
-
-            <div style={{ fontSize: 13, color: '#64748b', textAlign: 'right' }}>
-              Full beat
-              <br />
-              <b style={{ color: '#1f2937' }}>{buildBeatToken(selectedBeat)}</b>
-            </div>
+            <IonButton onClick={onClose} style={headerPrimaryButtonStyle}>
+              Done
+            </IonButton>
           </div>
+
+
         </div>
       </IonContent>
     </IonModal>
