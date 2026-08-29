@@ -98,10 +98,10 @@ const Help: React.FC = () => {
                 flexWrap: 'wrap',
               }}
             >
-              <IonButton routerLink="/help#demo-video">
+              {/* <IonButton routerLink="/help#demo-video">
                 <IonIcon slot="start" icon={playCircleOutline} />
                 View Demo Video
-              </IonButton>
+              </IonButton> */}
 
               <IonButton routerLink="/composer?start=setup">
                 Start Composing
@@ -114,7 +114,7 @@ const Help: React.FC = () => {
 
             <div id="demo-video" style={videoWrap}>
               <iframe
-                src="https://www.youtube.com/embed/MdX0Z5p3Kw8?cc_load_policy=1"
+                src="https://www.youtube.com/embed/iz-2WlDH4cc?cc_load_policy=1"
                 title="Sargam Studio Demo Video"
                 style={{
                   position: 'absolute',

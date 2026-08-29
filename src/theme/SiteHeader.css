@@ -1,0 +1,310 @@
+/* =====================================================
+   TOOLBAR
+===================================================== */
+
+.site-toolbar {
+    --background: rgba(255, 255, 255, 0.94);
+    --min-height: 74px;
+
+    backdrop-filter: blur(10px);
+
+    box-shadow:
+        0 6px 24px rgba(15, 23, 42, 0.10);
+}
+
+
+/* =====================================================
+   MAIN HEADER
+===================================================== */
+
+.site-header-container {
+    width: 100%;
+    max-width: 1180px;
+
+    min-height: 74px;
+
+    margin: 0 auto;
+    padding: 0 18px;
+
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 1fr)
+        auto
+        minmax(0, 1fr);
+
+    align-items: center;
+
+    box-sizing: border-box;
+}
+
+
+/* =====================================================
+   LEFT / RIGHT NAVIGATION
+===================================================== */
+
+.site-header-left {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.site-header-right {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.header-nav-button {
+    --border-radius: 999px;
+
+    font-weight: 800;
+}
+
+
+/* =====================================================
+   LOGO / BRAND
+===================================================== */
+
+.site-header-brand {
+    text-align: center;
+
+    line-height: 1.1;
+
+    white-space: nowrap;
+}
+
+.site-header-brand-name {
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 8px;
+
+    font-size: 22px;
+    font-weight: 950;
+
+    color: #1f2937;
+}
+
+.site-header-brand-name ion-icon {
+    font-size: 24px;
+
+    flex-shrink: 0;
+}
+
+.site-header-subtitle {
+    margin-top: 3px;
+
+    font-size: 12px;
+
+    color: #6b7280;
+}
+
+
+/* =====================================================
+   MOBILE MENU BUTTON
+===================================================== */
+
+.mobile-menu-button {
+    display: none;
+}
+
+
+/* =====================================================
+   MOBILE DROPDOWN
+===================================================== */
+
+.mobile-nav-menu {
+    display: none;
+}
+
+
+/* =====================================================
+   MOBILE
+===================================================== */
+
+@media (max-width: 650px) {
+
+    .site-toolbar {
+        --min-height: 70px;
+    }
+
+
+    /* Header row */
+
+    .site-header-container {
+        min-height: 70px;
+
+        padding:
+            8px
+            16px;
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 10px;
+    }
+
+
+    /* Hide desktop buttons */
+
+    .desktop-nav {
+        display: none;
+    }
+
+
+    /* Brand */
+
+    .site-header-brand {
+        flex: 1;
+
+        min-width: 0;
+
+        text-align: left;
+
+        white-space: normal;
+    }
+
+    .site-header-brand-name {
+        justify-content: flex-start;
+
+        gap: 7px;
+
+        font-size: 21px;
+
+        white-space: nowrap;
+    }
+
+    .site-header-brand-name ion-icon {
+        font-size: 23px;
+    }
+
+    .site-header-subtitle {
+        margin-top: 3px;
+
+        font-size: 11px;
+
+        text-align: left;
+
+        white-space: nowrap;
+    }
+
+
+    /* Hamburger */
+
+    .mobile-menu-button {
+        width: 44px;
+        height: 44px;
+
+        min-width: 44px;
+
+        margin: 0;
+        padding: 0;
+
+        border: none;
+        border-radius: 12px;
+
+        background: transparent;
+
+        display: flex;
+
+        align-items: center;
+        justify-content: center;
+
+        color: #2457e6;
+
+        font-size: 30px;
+
+        cursor: pointer;
+
+        flex-shrink: 0;
+    }
+
+    .mobile-menu-button:active {
+        background:
+            rgba(36, 87, 230, 0.08);
+    }
+
+
+    /* Dropdown */
+
+    .mobile-nav-menu {
+        width: 100%;
+
+        display: flex;
+
+        flex-direction: column;
+
+        padding:
+            6px
+            14px
+            12px;
+
+        box-sizing: border-box;
+
+        border-top:
+            1px solid
+            rgba(15, 23, 42, 0.08);
+
+        background:
+            rgba(255, 255, 255, 0.98);
+
+        box-shadow:
+            0 10px 18px
+            rgba(15, 23, 42, 0.07);
+    }
+
+
+    .mobile-nav-button {
+        width: 100%;
+
+        height: 46px;
+
+        margin: 1px 0;
+
+        font-size: 16px;
+        font-weight: 800;
+
+        --justify-content: flex-start;
+
+        --padding-start: 12px;
+        --padding-end: 12px;
+
+        --border-radius: 10px;
+    }
+}
+
+
+/* =====================================================
+   VERY SMALL PHONES
+===================================================== */
+
+@media (max-width: 380px) {
+
+    .site-header-container {
+        padding-left: 12px;
+        padding-right: 10px;
+    }
+
+    .site-header-brand-name {
+        font-size: 19px;
+    }
+
+    .site-header-brand-name ion-icon {
+        font-size: 21px;
+    }
+
+    .site-header-subtitle {
+        font-size: 10px;
+    }
+
+    .mobile-menu-button {
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
+
+        font-size: 27px;
+    }
+}

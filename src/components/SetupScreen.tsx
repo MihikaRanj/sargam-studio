@@ -13,6 +13,7 @@ import { add, musicalNotes, trash, optionsOutline } from 'ionicons/icons';
 import { SA_OPTIONS, TAAL_OPTIONS } from '../sargam/constants';
 import { Section, TaalId } from '../sargam/types';
 import { play, stop } from 'ionicons/icons';
+import '../theme/SetupScreen.css';
 
 type SetupScreenProps = {
   sa: string;
@@ -43,15 +44,8 @@ const SetupScreen: React.FC<SetupScreenProps> = ({
         }}
       >
         <IonCardContent style={{ padding: 22 }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1.2fr 0.8fr',
-              gap: 20,
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div className="setup-header-layout">
+            <div className="setup-header-info">
               <div
                 style={{
                   width: 48,
@@ -81,16 +75,10 @@ const SetupScreen: React.FC<SetupScreenProps> = ({
               </div>
             </div>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '180px auto',
-                gap: 12,
-                alignItems: 'end',
-              }}
-            >
+            <div className="setup-scale-controls">
               <IonItem
                 lines="none"
+                className="setup-scale-select"
                 style={{
                   '--background': 'transparent',
                   border: '1px solid rgba(120, 53, 15, 0.12)',
@@ -108,6 +96,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({
               </IonItem>
 
               <IonButton
+                className="setup-preview-button"
                 fill={previewingScale ? 'outline' : 'solid'}
                 color={previewingScale ? 'danger' : 'primary'}
                 onClick={onPreviewScale}

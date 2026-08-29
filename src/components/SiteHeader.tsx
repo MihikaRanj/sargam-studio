@@ -1,17 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     IonButton,
     IonHeader,
     IonIcon,
-    IonTitle,
     IonToolbar,
 } from '@ionic/react';
+
 import {
     helpCircleOutline,
     homeOutline,
     mailOutline,
     musicalNotesOutline,
+    menuOutline,
+    closeOutline,
 } from 'ionicons/icons';
+
+import '../theme/SiteHeader.css';
 
 type SiteHeaderProps = {
     showHome?: boolean;
@@ -24,70 +28,67 @@ const SiteHeader: React.FC<SiteHeaderProps> = ({
     showHelp = true,
     showContact = true,
 }) => {
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    const closeMenu = () => {
+        setMobileMenuOpen(false);
+    };
+
     return (
         <IonHeader>
-            <IonToolbar
-                style={{
-                    '--background': 'rgba(255,255,255,0.92)',
-                    '--min-height': '74px',
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: '0 6px 24px rgba(15,23,42,0.10)',
-                }}
-            >
-                <div
-                    style={{
-                        maxWidth: 1180,
-                        margin: '0 auto',
-                        padding: '0 18px',
-                        display: 'grid',
-                        gridTemplateColumns: '1fr auto 1fr',
-                        alignItems: 'center',
-                        minHeight: 74,
-                    }}
-                >
-                    <div style={{ display: 'flex', gap: 10 }}>
+            <IonToolbar className="site-toolbar">
+
+                <div className="site-header-container">
+
+                    {/* LEFT SIDE - DESKTOP */}
+                    <div className="site-header-left desktop-nav">
                         {showHome && (
                             <IonButton
                                 fill="clear"
                                 routerLink="/home"
-                                style={{ '--border-radius': '999px', fontWeight: 800 }}
+                                className="header-nav-button"
                             >
-                                <IonIcon slot="start" icon={homeOutline} />
+                                <IonIcon
+                                    slot="start"
+                                    icon={homeOutline}
+                                />
                                 Home
                             </IonButton>
                         )}
                     </div>
 
-                    <IonTitle style={{ padding: 0 }}>
-                        <div style={{ textAlign: 'center', lineHeight: 1.1 }}>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 8,
-                                    fontSize: 22,
-                                    fontWeight: 950,
-                                    color: '#1f2937',
-                                }}
-                            >
-                                <IonIcon icon={musicalNotesOutline} />
-                                Sargam Studio
-                            </div>
-                            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 3 }}>
-                                Hindustani Music Composer
-                            </div>
-                        </div>
-                    </IonTitle>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                    {/* BRAND */}
+                    <div className="site-header-brand">
+
+                        <div className="site-header-brand-name">
+                            <IonIcon icon={musicalNotesOutline} />
+
+                            <span>
+                                Sargam Studio
+                            </span>
+                        </div>
+
+                        <div className="site-header-subtitle">
+                            Hindustani Music Composer
+                        </div>
+
+                    </div>
+
+
+                    {/* RIGHT SIDE - DESKTOP */}
+                    <div className="site-header-right desktop-nav">
+
                         {showHelp && (
                             <IonButton
                                 fill="clear"
                                 routerLink="/help"
-                                style={{ '--border-radius': '999px', fontWeight: 800 }}
+                                className="header-nav-button"
                             >
-                                <IonIcon slot="start" icon={helpCircleOutline} />
+                                <IonIcon
+                                    slot="start"
+                                    icon={helpCircleOutline}
+                                />
                                 Help
                             </IonButton>
                         )}
@@ -96,14 +97,97 @@ const SiteHeader: React.FC<SiteHeaderProps> = ({
                             <IonButton
                                 fill="clear"
                                 routerLink="/contact"
-                                style={{ '--border-radius': '999px', fontWeight: 800 }}
+                                className="header-nav-button"
                             >
-                                <IonIcon slot="start" icon={mailOutline} />
+                                <IonIcon
+                                    slot="start"
+                                    icon={mailOutline}
+                                />
                                 Contact
                             </IonButton>
                         )}
+
                     </div>
+
+
+                    {/* MOBILE HAMBURGER */}
+                    <button
+                        className="mobile-menu-button"
+                        onClick={() =>
+                            setMobileMenuOpen(!mobileMenuOpen)
+                        }
+                        aria-label={
+                            mobileMenuOpen
+                                ? 'Close navigation menu'
+                                : 'Open navigation menu'
+                        }
+                    >
+                        <IonIcon
+                            icon={
+                                mobileMenuOpen
+                                    ? closeOutline
+                                    : menuOutline
+                            }
+                        />
+                    </button>
+
                 </div>
+
+
+                {/* MOBILE MENU */}
+                {mobileMenuOpen && (
+
+                    <div className="mobile-nav-menu">
+
+                        {showHome && (
+                            <IonButton
+                                fill="clear"
+                                routerLink="/home"
+                                onClick={closeMenu}
+                                className="mobile-nav-button"
+                            >
+                                <IonIcon
+                                    slot="start"
+                                    icon={homeOutline}
+                                />
+                                Home
+                            </IonButton>
+                        )}
+
+                        {showHelp && (
+                            <IonButton
+                                fill="clear"
+                                routerLink="/help"
+                                onClick={closeMenu}
+                                className="mobile-nav-button"
+                            >
+                                <IonIcon
+                                    slot="start"
+                                    icon={helpCircleOutline}
+                                />
+                                Help
+                            </IonButton>
+                        )}
+
+                        {showContact && (
+                            <IonButton
+                                fill="clear"
+                                routerLink="/contact"
+                                onClick={closeMenu}
+                                className="mobile-nav-button"
+                            >
+                                <IonIcon
+                                    slot="start"
+                                    icon={mailOutline}
+                                />
+                                Contact
+                            </IonButton>
+                        )}
+
+                    </div>
+
+                )}
+
             </IonToolbar>
         </IonHeader>
     );

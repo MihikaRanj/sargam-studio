@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     IonButton,
     IonContent,
@@ -18,6 +18,31 @@ const features = [
 ];
 
 const Home: React.FC = () => {
+    const [userCount, setUserCount] = useState<number | null>(null);
+
+    useEffect(() => {
+        const loadUserCount = async () => {
+            try {
+                const response = await fetch('/api/analytics-users');
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (typeof data.users === 'number') {
+                    setUserCount(data.users);
+                }
+            } catch (error) {
+                console.error('Unable to load user count:', error);
+            }
+        };
+
+        loadUserCount();
+    }, []);
+
+
     return (
         <IonPage>
             <SiteHeader showHome={false} showHelp={true} />
@@ -75,52 +100,83 @@ const Home: React.FC = () => {
                                     notation for practice.
                                 </p>
 
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        gap: 16,
-                                        flexWrap: 'wrap',
-                                        alignItems: 'center',
-                                        marginTop: 8,
-                                    }}
-                                >
-                                    <IonButton
-                                        size="large"
-                                        routerLink="/composer?start=setup"
+                                <div style={{ marginTop: 8 }}>
+                                    <div
                                         style={{
-                                            '--border-radius': '16px',
-                                            '--box-shadow': '0 12px 24px rgba(37, 99, 235, 0.28)',
-                                            '--padding-start': '28px',
-                                            '--padding-end': '28px',
-                                            minHeight: '58px',
-                                            fontWeight: 900,
-                                            letterSpacing: '0.4px',
+                                            display: 'flex',
+                                            gap: 16,
+                                            flexWrap: 'wrap',
+                                            alignItems: 'center',
                                         }}
                                     >
-                                        Start Composing
-                                    </IonButton>
+                                        <IonButton
+                                            size="large"
+                                            routerLink="/composer?start=setup"
+                                            style={{
+                                                '--border-radius': '16px',
+                                                '--box-shadow': '0 12px 24px rgba(37, 99, 235, 0.28)',
+                                                '--padding-start': '28px',
+                                                '--padding-end': '28px',
+                                                minHeight: '58px',
+                                                fontWeight: 900,
+                                                letterSpacing: '0.4px',
+                                            }}
+                                        >
+                                            Start Composing
+                                        </IonButton>
 
-                                    <IonButton
-                                        size="large"
-                                        fill="outline"
-                                        color="primary"
-                                        routerLink="/composer?demo=bageshree"
-                                        style={{
-                                            '--border-radius': '16px',
-                                            '--padding-start': '24px',
-                                            '--padding-end': '24px',
-                                            minHeight: '58px',
-                                            fontWeight: 800,
-                                            opacity: 0.95,
-                                        }}
-                                    >
-                                        View Sample
-                                    </IonButton>
+                                        <IonButton
+                                            size="large"
+                                            fill="outline"
+                                            color="primary"
+                                            routerLink="/composer?demo=bageshree"
+                                            style={{
+                                                '--border-radius': '16px',
+                                                '--padding-start': '24px',
+                                                '--padding-end': '24px',
+                                                minHeight: '58px',
+                                                fontWeight: 800,
+                                                opacity: 0.95,
+                                            }}
+                                        >
+                                            View Sample
+                                        </IonButton>
+                                    </div>
+
+                                    {userCount !== null && (
+                                        <div
+                                            style={{
+                                                marginTop: 16,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 7,
+                                                color: '#64748b',
+                                                fontSize: 14,
+                                                fontWeight: 650,
+                                            }}
+                                        >
+                                            <span style={{ fontSize: 17 }}>🎵</span>
+
+                                            <span>
+                                                <strong
+                                                    style={{
+                                                        color: '#334155',
+                                                        fontWeight: 850,
+                                                    }}
+                                                >
+                                                    {userCount.toLocaleString()}
+                                                </strong>{' '}
+                                                musicians have explored Sargam Studio
+                                            </span>
+                                        </div>
+                                    )}
 
                                     <IonButton
                                         fill="clear"
                                         routerLink="/help"
                                         style={{
+                                            marginTop: 6,
+                                            marginLeft: -12,
                                             fontWeight: 700,
                                             fontSize: 16,
                                             textTransform: 'none',
