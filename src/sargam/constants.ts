@@ -1,6 +1,7 @@
 import { Swara, TaalConfig, TaalId } from './types';
 
-export const SA_OPTIONS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
+// export const SA_OPTIONS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
+export const SA_OPTIONS = ['A#3', 'B3', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
 export const SWARA_OPTIONS: readonly Swara[] = ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'];
 
 export const SWARA_MAP: Record<Swara, number> = {
