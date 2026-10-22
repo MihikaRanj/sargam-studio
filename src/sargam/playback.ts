@@ -16,7 +16,8 @@ export function getFrequency(
 ): number | null {
   if (token.swara === '-') return null;
 
-  const baseMidi = Tone.Frequency(`${sa}4`).toMidi();
+  // const baseMidi = Tone.Frequency(`${sa}4`).toMidi();
+  const baseMidi = Tone.Frequency(/\d$/.test(sa) ? sa : `${sa}4`).toMidi();
   let offset = SWARA_MAP[token.swara as Swara] ?? 0;
 
   if (token.variant === 'komal') offset -= 1;

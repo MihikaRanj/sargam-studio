@@ -19,6 +19,7 @@ const features = [
 
 const Home: React.FC = () => {
     const [userCount, setUserCount] = useState<number | null>(null);
+    const [countryCount, setCountryCount] = useState<number | null>(null);
 
     useEffect(() => {
         const loadUserCount = async () => {
@@ -33,6 +34,10 @@ const Home: React.FC = () => {
 
                 if (typeof data.users === 'number') {
                     setUserCount(data.users);
+                }
+
+                if (typeof data.countries === 'number') {
+                    setCountryCount(data.countries);
                 }
             } catch (error) {
                 console.error('Unable to load user count:', error);
@@ -166,7 +171,11 @@ const Home: React.FC = () => {
                                                 >
                                                     {userCount.toLocaleString()}
                                                 </strong>{' '}
-                                                musicians have explored Sargam Studio
+                                                musicians
+                                                {countryCount !== null
+                                                    ? ` from ${countryCount} ${countryCount === 1 ? 'country' : 'countries'}`
+                                                    : ''}
+                                                {' '}have explored Sargam Studio
                                             </span>
                                         </div>
                                     )}
